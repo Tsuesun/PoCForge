@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-push hook to run code quality checks
+
+echo "Running pre-push checks..."
+
+# Run ruff formatting check
+echo "Checking code formatting with ruff..."
+if ! uv run ruff format --check .; then
+    echo "❌ Code formatting issues found. Run 'uv run ruff format .' to fix."
+    exit 1
+fi
+
+# Run ruff linting
+echo "Running ruff linting..."
+if ! uv run ruff check .; then
+    echo "❌ Linting issues found. Run 'uv run ruff check --fix .' to fix auto-fixable issues."
+    exit 1
+fi
+
+# Run mypy type checking
+echo "Running mypy type checking..."
+if ! uv run mypy .; then
+    echo "❌ Type checking failed. Fix the issues above."
+    exit 1
+fi
+
+echo "✅ All checks passed! Pushing..."
