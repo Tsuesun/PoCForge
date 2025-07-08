@@ -5,7 +5,6 @@ Run with: uv run main.py
 """
 
 import logging
-import os
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -18,7 +17,7 @@ from cve_tracker import (
     search_security_commits,
     search_security_prs,
 )
-from cve_tracker.config import get_github_token, get_anthropic_api_key
+from cve_tracker.config import get_anthropic_api_key, get_github_token
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
 # Set up logging (WARNING level for clean output)
@@ -168,23 +167,23 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                                     )
                                                 if poc_data["vulnerable_code"]:
                                                     print(
-                                                        f"            🐛 Vulnerable Code:"
+                                                        "            🐛 Vulnerable Code:"
                                                     )
                                                     print(
                                                         f"               {poc_data['vulnerable_code']}"
                                                     )
                                                 if poc_data["fixed_code"]:
-                                                    print(f"            ✅ Fixed Code:")
+                                                    print("            ✅ Fixed Code:")
                                                     print(
                                                         f"               {poc_data['fixed_code']}"
                                                     )
                                                 if poc_data["test_case"]:
-                                                    print(f"            🧪 Test Case:")
+                                                    print("            🧪 Test Case:")
                                                     print(
                                                         f"               {poc_data['test_case']}"
                                                     )
                                                 if poc_data["reasoning"]:
-                                                    print(f"            💡 Reasoning:")
+                                                    print("            💡 Reasoning:")
                                                     print(
                                                         f"               {poc_data['reasoning']}"
                                                     )

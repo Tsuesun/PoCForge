@@ -28,10 +28,10 @@ def load_config() -> dict:
     config_file = Path(__file__).parent.parent / "config.json"
     if config_file.exists():
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 file_config = json.load(f)
                 config.update(file_config)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Warning: Could not load config.json: {e}")
 
     # Environment variables override file config

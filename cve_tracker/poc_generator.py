@@ -5,11 +5,11 @@ Analyzes fix commits to generate vulnerability demonstrations and test cases.
 """
 
 import logging
-import os
 import re
 from typing import Any, Dict
 
 import anthropic
+
 from .config import get_anthropic_api_key
 
 
