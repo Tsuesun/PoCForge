@@ -2,8 +2,9 @@
 CVE Tracker - A tool for correlating CVEs with security fixes in repositories.
 """
 
-from .claude_analysis import analyze_commit_with_claude
+from .claude_analysis import analyze_commit_with_claude, screen_commits_with_claude
 from .github_search import (
+    extract_commits_from_advisory_references,
     find_repository,
     search_commits_in_repo,
     search_prs_in_repo,
@@ -26,4 +27,6 @@ __all__ = [
     "search_prs_in_repo",
     "search_commits_in_repo",
     "analyze_commit_with_claude",
+    "screen_commits_with_claude",
+    "extract_commits_from_advisory_references",
 ]

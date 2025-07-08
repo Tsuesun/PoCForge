@@ -1,35 +1,34 @@
-# CVE to Fix Tracker
+# CVE-to-PoC Generator
 
-An AI-powered tool that fetches recent CVEs (Common Vulnerabilities and Exposures) from GitHub's security advisory API and automatically correlates them with actual security fixes in the affected repositories using Claude AI for semantic code analysis.
+A security research tool that transforms CVE fix commits into practical Proof-of-Concept (PoC) demonstrations. Analyzes security fix commits from GitHub advisories using AI to generate vulnerability test cases, attack vectors, and reproduction code for security testing and education.
 
 ## 🚀 Features
 
-### Core Capabilities
-- **CVE Discovery**: Fetches recent security advisories from GitHub's global advisory database
-- **Repository Mapping**: Automatically maps vulnerable packages to their likely GitHub repositories
-- **AI-Powered Fix Detection**: Uses Claude AI to analyze actual commit diffs and identify real security fixes
-- **Date-Based Filtering**: Searches ±30 days around CVE publication for maximum accuracy
-- **Multi-Ecosystem Support**: Handles npm, PyPI, Maven, NuGet, and other package ecosystems
+### 🧪 PoC Generation
+- **🎯 Vulnerability Demonstrations**: Creates practical exploit code from security fix commits
+- **💥 Attack Vector Analysis**: Identifies how vulnerabilities can be triggered
+- **📋 Prerequisites Detection**: Documents conditions required for exploitation
+- **🔧 Before/After Examples**: Shows vulnerable vs fixed code side-by-side
+- **🧪 Test Case Generation**: Provides ready-to-run test cases for validation
 
-### AI-Enhanced Analysis
-- **Semantic Code Understanding**: Claude analyzes actual code changes, not just commit messages
-- **Vulnerability-Specific Detection**: Identifies specific types (ReDoS, XSS, Open Redirect, Path Traversal, etc.)
-- **Confidence Scoring**: Provides high/medium/low confidence levels for each finding
-- **Batch Processing**: Efficiently analyzes multiple commits in single API calls
-- **Smart Filtering**: Only uses AI analysis on promising commits to control costs
+### 🔍 Intelligent Analysis
+- **🤖 AI-Powered Diff Analysis**: Uses Claude to understand what the fix actually prevents
+- **🎯 Function-Level Targeting**: Identifies specific vulnerable functions and methods
+- **⚙️ Configuration Analysis**: Detects flags, settings, or conditions needed for exploitation
+- **📊 Multi-Language Support**: Handles Python, JavaScript, Java, Rust, and more
 
-### Performance & Accuracy
-- **Enhanced Scoring**: Combines keyword-based scoring with AI semantic analysis
-- **Cost Optimized**: Analyzes only commits with base score ≥4 to minimize API usage
-- **Rate Limit Aware**: Handles GitHub and Claude API limits gracefully
-- **Proven Results**: Successfully finds exact security fixes (e.g., better-auth origin-check vulnerability)
+### 🚀 Efficient Discovery
+- **📋 Advisory-First**: Extracts fix commits directly from GitHub Security Advisories
+- **⚡ Direct Lookups**: No expensive repository searching needed
+- **🌐 Multi-Ecosystem**: Supports npm, PyPI, Maven, Rust Crates, Composer, and more
+- **📅 Recent CVEs**: Focuses on latest vulnerabilities for maximum relevance
 
 ## 🛠 Requirements
 
 - Python 3.8+
 - [uv](https://github.com/astral-sh/uv) package manager
 - GitHub Personal Access Token (optional, but recommended for higher rate limits)
-- Anthropic API Key (optional, enables AI-powered analysis - highly recommended)
+- Anthropic API Key (required for PoC generation using Claude AI)
 
 ## 📦 Installation
 
@@ -49,7 +48,7 @@ uv sync
 # GitHub token (recommended for higher rate limits)
 export GITHUB_TOKEN="your_github_token_here"
 
-# Claude API key (recommended for AI-enhanced analysis)
+# Claude API key (required for PoC generation)
 export ANTHROPIC_API_KEY="your_claude_api_key_here"
 ```
 
@@ -60,81 +59,100 @@ export ANTHROPIC_API_KEY="your_claude_api_key_here"
 2. Generate a new token with `public_repo` scope
 3. Copy the token and set as `GITHUB_TOKEN` environment variable
 
-### Claude API Key
+### Claude API Key (Required)
 1. Sign up at [Anthropic Console](https://console.anthropic.com/)
-2. Add credits to your account (minimum $5-10)
+2. Add credits to your account (minimum $5-10 recommended)
 3. Generate an API key in the dashboard
 4. Set as `ANTHROPIC_API_KEY` environment variable
 
+**Note**: Claude AI is essential for analyzing fix commits and generating vulnerability PoCs. The tool uses Sonnet for better code analysis.
+
 ## 🚀 Usage
 
-### Basic Usage (Keyword-based analysis)
+### Basic Usage
 ```bash
 uv run main.py
 ```
 
-### Enhanced Usage (With AI Analysis)
+### Recommended Usage (with API keys)
 ```bash
 GITHUB_TOKEN="your_token" ANTHROPIC_API_KEY="your_claude_key" uv run main.py
+```
+
+### Quick Test
+```bash
+# Set your API keys once
+export GITHUB_TOKEN="your_github_token"
+export ANTHROPIC_API_KEY="your_claude_api_key"
+
+# Run the PoC generator
+uv run main.py
 ```
 
 ### Example Output
 
 ```
-🚨 CVE: CVE-2025-53535
-📝 Summary: Better Auth Open Redirect Vulnerability in originCheck Middleware
-⚠️  Severity: LOW
-📅 Published: 2025-07-07 22:13:14+00:00
+🚨 CVE: CVE-2025-53539
+📝 Summary: fastapi-guard is vulnerable to ReDoS through inefficient regex
+⚠️  Severity: MEDIUM
+📅 Published: 2025-07-07 23:36:39+00:00
 
-📦 Package: better-auth (npm)
-   Vulnerable: <= 1.2.9
+📦 Package: fastapi-guard (pip)
+   Vulnerable: <= 3.0.0
    Patched: None
-   ✅ Found 8 potential security fixes:
-      🔧 fix(origin-check): support protocol-specific wildcard trusted origins (#3155) (Score: 16)
-         📄 https://github.com/better-auth/better-auth/commit/2734d07e88f78e4e79f8bb65e909c297c7197a09
-         🏢 better-auth/better-auth
-         📅 2025-07-05
-      🔧 fix(two-factor): otp separator mismatch (#2989) (Score: 14)
-         📄 https://github.com/better-auth/better-auth/commit/c483fa14db62b3a8d82049a167f9933c0542af7d
-         🏢 better-auth/better-auth
-         📅 2025-07-07
+   ✅ Found 1 authoritative fix commits from security advisory:
+      🔧 Fix commit referenced in security advisory (Score: 100)
+         📄 https://github.com/rennf93/fastapi-guard/commit/d9d50e8130b7b434cdc1b001b8cfd03a06729f7f
+         🏢 rennf93/fastapi-guard
+         📅 Referenced in advisory
+         🧪 Generated PoC:
+            🎯 Vulnerable: SecurityMiddleware.validate_request()
+            📋 Prerequisites: fastapi-guard <= 3.0.0, regex validation enabled, IPv6 input
+            💥 Attack: Crafted IPv6 strings cause exponential regex backtracking leading to DoS...
+
+📊 Analysis Summary:
+   Total packages analyzed: 1
+   ✅ PoCs generated: 1
+   🧪 Vulnerability demonstrations ready for testing
 ```
 
 ## 🧠 How It Works
 
-### 1. CVE Discovery
-Queries GitHub's global security advisory API for recent vulnerabilities and extracts:
-- CVE IDs and descriptions
-- Affected packages and versions
-- Publication dates
-- Severity levels
+### CVE-to-PoC Generation Pipeline
 
-### 2. Repository Mapping
-Maps vulnerable packages to potential repository names using ecosystem-specific patterns:
-- **npm**: Handles org/package patterns (`@org/package` → `org/package`)
-- **PyPI**: Converts between hyphens and underscores (`my-package` ↔ `my_package`)
-- **Maven/Gradle**: Extracts artifact names from group:artifact patterns
-- **NuGet**: Direct package name mapping
+### 1. CVE Discovery & Advisory Analysis
+1. **Fetches recent CVEs** from GitHub's global security advisory API
+2. **Extracts fix commit URLs** directly from advisory references
+3. **Identifies vulnerable packages** and version ranges
+4. **Prioritizes high-confidence sources** (advisory-referenced commits)
 
-### 3. Date-Based Discovery
-Searches for commits and PRs within ±30 days of CVE publication date rather than just recent activity, dramatically improving accuracy.
+### 2. Fix Commit Analysis
+1. **Downloads commit diffs** from the referenced fix commits
+2. **Analyzes code changes** to understand what was vulnerable
+3. **Identifies vulnerable functions** and attack surfaces
+4. **Maps fix patterns** to vulnerability types
 
-### 4. AI-Powered Analysis
-For promising commits (base score ≥ 4):
-1. **Extracts code diffs** from commit changes
-2. **Sends to Claude AI** with CVE description for semantic analysis
-3. **Receives detailed assessment** including:
-   - Relevance score (0-15)
-   - Vulnerability type identification
-   - Confidence level (high/medium/low)
-   - Human-readable reasoning
+### 3. AI-Powered PoC Generation
+1. **Reverse engineers vulnerabilities** from fix commit diffs
+2. **Generates exploit code** that would trigger the vulnerability
+3. **Documents prerequisites** (versions, flags, configurations)
+4. **Creates test cases** showing vulnerable vs fixed behavior
+5. **Provides attack vectors** and exploitation techniques
 
-### 5. Enhanced Scoring
-Combines multiple signals:
-- **Base Score**: Keyword matching in commit messages (2-10 points)
-- **AI Score**: Semantic code analysis (0-15 points)
-- **CVE Match**: Direct CVE ID references (10 points)
-- **Final Score**: Sum of all relevant scores
+### 4. Output Generation
+- **🎯 Vulnerable Functions**: Specific methods/functions that were vulnerable
+- **📋 Prerequisites**: Conditions needed for exploitation
+- **💥 Attack Vectors**: How the vulnerability can be triggered
+- **🧪 PoC Code**: Ready-to-run exploitation examples
+- **🔧 Fix Validation**: Before/after code comparisons
+
+### 5. Multi-Language Support
+The tool handles vulnerabilities across different ecosystems:
+- **Python**: FastAPI, Django, Flask applications and libraries
+- **JavaScript/Node**: npm packages, Express apps, React components
+- **Java**: Maven dependencies, Spring applications
+- **Rust**: Cargo crates and Rust applications
+- **PHP**: Composer packages and web applications
 
 ## 💰 Cost Analysis
 

@@ -11,11 +11,52 @@ from typing import Any, Dict, List, Optional
 from github import Github
 from github.Repository import Repository
 
+import re
+
+from .claude_analysis import screen_commits_with_claude
 from .security_scoring import (
     SECURITY_KEYWORDS,
     calculate_commit_security_relevance_score,
     calculate_security_relevance_score,
 )
+
+
+def extract_commits_from_advisory_references(
+    references: List[str],
+) -> List[Dict[str, Any]]:
+    """
+    Extract commit URLs from advisory references.
+
+    Args:
+        references: List of reference URLs from the advisory
+
+    Returns:
+        List of commit info dictionaries with high confidence scores
+    """
+    commits = []
+    commit_pattern = r"https://github\.com/([^/]+/[^/]+)/commit/([a-f0-9]{40})"
+
+    for ref in references:
+        match = re.match(commit_pattern, ref)
+        if match:
+            repo_name = match.group(1)
+            commit_sha = match.group(2)
+            commits.append(
+                {
+                    "message": "Fix commit referenced in security advisory",
+                    "url": ref,
+                    "score": 100,  # Very high confidence - directly from advisory
+                    "repo": repo_name,
+                    "sha": commit_sha,
+                    "date": "Referenced in advisory",
+                    "source": "advisory_reference",
+                }
+            )
+            logging.info(
+                f"Found advisory-referenced commit: {commit_sha[:8]} in {repo_name}"
+            )
+
+    return commits
 
 
 def find_repository(github_client: Github, repo_name: str) -> Optional[Repository]:
@@ -316,30 +357,86 @@ def search_commits_in_repo(
 
         logging.info(f"Processing {len(recent_commits)} commits from {repo.full_name}")
 
-        for commit in recent_commits:
-            score = calculate_commit_security_relevance_score(
-                commit, security_keywords, cve_id, cve_description
+        # Step 1: AI-first screening of all commits
+        if cve_description and recent_commits:
+            # Prepare data for screening (just message and SHA)
+            screening_data = []
+            for commit in recent_commits:
+                screening_data.append(
+                    {"sha": commit.sha, "message": commit.commit.message}
+                )
+
+            # Get AI screening scores
+            screening_scores = screen_commits_with_claude(
+                screening_data, cve_description, cve_id
             )
 
-            # Only include commits with some relevance
-            if score > 0:
+            # Step 2: Detailed analysis only for AI-selected commits
+            for commit in recent_commits:
+                screening_score = screening_scores.get(commit.sha, 0)
                 short_msg = commit.commit.message[:50]
                 sha = commit.sha[:8]
-                logging.info(
-                    f"Found relevant commit {sha} with score {score}: {short_msg}..."
+
+                # Debug: Log all screening scores
+                if screening_score > 0:
+                    logging.info(
+                        f"AI screening for {sha}: score={screening_score}, msg='{short_msg}'"
+                    )
+
+                # Only do detailed analysis if AI thinks it's promising
+                if screening_score > 0:
+                    detailed_score = calculate_commit_security_relevance_score(
+                        commit, security_keywords, cve_id, cve_description
+                    )
+
+                    # Combine AI screening with detailed analysis
+                    final_score = detailed_score + screening_score
+
+                    if final_score > 0:
+                        logging.info(
+                            f"Found relevant commit {sha} with score {final_score} "
+                            f"(s: {screening_score}, d: {detailed_score}): "
+                            f"{short_msg}..."
+                        )
+                        commits.append(
+                            {
+                                "message": commit.commit.message.split("\n")[
+                                    0
+                                ],  # First line only
+                                "url": commit.html_url,
+                                "score": final_score,
+                                "repo": repo.full_name,
+                                "sha": commit.sha,
+                                "date": commit.commit.author.date.strftime("%Y-%m-%d"),
+                            }
+                        )
+        else:
+            # Fallback to keyword-first analysis if no CVE description
+            for commit in recent_commits:
+                score = calculate_commit_security_relevance_score(
+                    commit, security_keywords, cve_id, cve_description
                 )
-                commits.append(
-                    {
-                        "message": commit.commit.message.split("\n")[
-                            0
-                        ],  # First line only
-                        "url": commit.html_url,
-                        "score": score,
-                        "repo": repo.full_name,
-                        "sha": commit.sha,
-                        "date": commit.commit.author.date.strftime("%Y-%m-%d"),
-                    }
-                )
+
+                # Only include commits with some relevance
+                if score > 0:
+                    short_msg = commit.commit.message[:50]
+                    sha = commit.sha[:8]
+                    logging.info(
+                        f"Found relevant commit {sha} with score {score}: "
+                        f"{short_msg}..."
+                    )
+                    commits.append(
+                        {
+                            "message": commit.commit.message.split("\n")[
+                                0
+                            ],  # First line only
+                            "url": commit.html_url,
+                            "score": score,
+                            "repo": repo.full_name,
+                            "sha": commit.sha,
+                            "date": commit.commit.author.date.strftime("%Y-%m-%d"),
+                        }
+                    )
 
     except Exception as e:
         logging.error(f"Error searching commits in {repo.full_name}: {e}")
