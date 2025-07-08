@@ -118,9 +118,9 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
                                             # Generate PoC
                                             package_info = {
-                                                "name": pkg.name,
-                                                "ecosystem": pkg.ecosystem,
-                                                "vulnerable_versions": vuln.vulnerable_version_range,
+                                                "name": pkg.name or "unknown",
+                                                "ecosystem": pkg.ecosystem or "unknown",
+                                                "vulnerable_versions": vuln.vulnerable_version_range or "unknown",
                                             }
 
                                             poc_data = generate_poc_from_fix_commit(

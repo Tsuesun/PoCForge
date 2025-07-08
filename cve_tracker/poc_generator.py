@@ -32,7 +32,7 @@ def generate_poc_from_fix_commit(
         Dictionary containing PoC code, prerequisites, and context
     """
     # Initialize default response
-    poc_data = {
+    poc_data: Dict[str, Any] = {
         "vulnerable_code": None,
         "fixed_code": None,
         "prerequisites": [],
@@ -187,7 +187,7 @@ def extract_vulnerability_context(
     Returns:
         Dictionary with vulnerability context information
     """
-    context = {
+    context: Dict[str, Any] = {
         "modified_files": [],
         "functions_changed": [],
         "config_changes": [],

@@ -35,11 +35,13 @@ def load_config() -> dict:
             print(f"Warning: Could not load config.json: {e}")
 
     # Environment variables override file config
-    if os.getenv("GITHUB_TOKEN"):
-        config["github_token"] = os.getenv("GITHUB_TOKEN")
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        config["github_token"] = github_token
 
-    if os.getenv("ANTHROPIC_API_KEY"):
-        config["anthropic_api_key"] = os.getenv("ANTHROPIC_API_KEY")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        config["anthropic_api_key"] = anthropic_key
 
     return config
 
