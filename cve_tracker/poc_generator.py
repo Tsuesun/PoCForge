@@ -78,7 +78,9 @@ Analyze the fix to understand what was vulnerable before.
 IMPORTANT: Return ONLY valid JSON, no additional text or explanations.
 Use double quotes for all strings. Do NOT use backticks or template literals.
 
-For vulnerable_function: Identify the SPECIFIC function/method in the {package_info.get("name", "unknown")} package that was vulnerable, NOT the low-level library function it calls. Look for function definitions in the diff (def function_name, class methods, etc.).
+For vulnerable_function: Identify the SPECIFIC function/method in the {package_info.get("name", "unknown")} package
+that was vulnerable, NOT the low-level library function it calls. Look for function definitions in the diff
+(def function_name, class methods, etc.).
 
 {{
   "vulnerable_function": "ClassName.method_name or function_name from the package being fixed",
