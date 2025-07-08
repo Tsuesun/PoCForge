@@ -24,4 +24,11 @@ if ! uv run mypy .; then
     exit 1
 fi
 
+# Run tests
+echo "Running tests..."
+if ! uv run pytest; then
+    echo "❌ Tests failed. Fix the issues above."
+    exit 1
+fi
+
 echo "✅ All checks passed! Pushing..."
