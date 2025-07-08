@@ -18,6 +18,7 @@ from cve_tracker import (
     search_security_commits,
     search_security_prs,
 )
+from cve_tracker.config import get_github_token, get_anthropic_api_key
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
 # Set up logging (WARNING level for clean output)
@@ -163,9 +164,20 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                                     )
                                                 if poc_data["attack_vector"]:
                                                     print(
-                                                        f"            💥 Attack: "
-                                                        f"{poc_data['attack_vector'][:100]}..."
+                                                        f"            💥 Attack: {poc_data['attack_vector']}"
                                                     )
+                                                if poc_data["vulnerable_code"]:
+                                                    print(f"            🐛 Vulnerable Code:")
+                                                    print(f"               {poc_data['vulnerable_code']}")
+                                                if poc_data["fixed_code"]:
+                                                    print(f"            ✅ Fixed Code:")
+                                                    print(f"               {poc_data['fixed_code']}")
+                                                if poc_data["test_case"]:
+                                                    print(f"            🧪 Test Case:")
+                                                    print(f"               {poc_data['test_case']}")
+                                                if poc_data["reasoning"]:
+                                                    print(f"            💡 Reasoning:")
+                                                    print(f"               {poc_data['reasoning']}")
                                             else:
                                                 reason = poc_data["reasoning"][:50]
                                                 print(
@@ -288,13 +300,21 @@ def main() -> None:
     """Main function"""
     print("CVE-to-PoC Generator")
 
-    # Get token from environment variable
-    token = os.getenv("GITHUB_TOKEN")
+    # Get tokens from config
+    token = get_github_token()
+    anthropic_key = get_anthropic_api_key()
+    
     if not token:
-        print("Tip: Set GITHUB_TOKEN environment variable for higher rate limits")
+        print("Tip: Add GitHub token to config.json for higher rate limits")
         logging.warning("No GITHUB_TOKEN found - using unauthenticated requests")
     else:
-        logging.info(f"Using GITHUB_TOKEN (starts with: {token[:8]}...)")
+        logging.info(f"Using GITHUB_TOKEN from config (starts with: {token[:8]}...)")
+    
+    if not anthropic_key:
+        print("Warning: No Anthropic API key found - PoC generation will be disabled")
+        print("Add your key to config.json or set ANTHROPIC_API_KEY environment variable")
+    else:
+        logging.info("Using Anthropic API key from config")
 
     fetch_recent_cves(token, hours=24)  # Back to 24 hours for testing
 

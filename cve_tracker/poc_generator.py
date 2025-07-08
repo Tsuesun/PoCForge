@@ -10,6 +10,7 @@ import re
 from typing import Any, Dict
 
 import anthropic
+from .config import get_anthropic_api_key
 
 
 def generate_poc_from_fix_commit(
@@ -43,9 +44,9 @@ def generate_poc_from_fix_commit(
     }
 
     # Check for API key
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = get_anthropic_api_key()
     if not api_key:
-        poc_data["reasoning"] = "No ANTHROPIC_API_KEY environment variable set"
+        poc_data["reasoning"] = "No Anthropic API key found in config.json or environment"
         return poc_data
 
     # Skip analysis if diff is too large
@@ -72,9 +73,13 @@ Fix Commit Diff:
 Generate a practical PoC that demonstrates the vulnerability. \
 Analyze the fix to understand what was vulnerable before.
 
-Return JSON only:
+IMPORTANT: Return ONLY valid JSON, no additional text or explanations.
+Use double quotes for all strings. Do NOT use backticks or template literals.
+
+For vulnerable_function: Identify the SPECIFIC function/method in the {package_info.get("name", "unknown")} package that was vulnerable, NOT the low-level library function it calls. Look for function definitions in the diff (def function_name, class methods, etc.).
+
 {{
-  "vulnerable_function": "function/method name that was vulnerable",
+  "vulnerable_function": "ClassName.method_name or function_name from the package being fixed",
   "prerequisites": ["list", "of", "conditions", "needed", "for", "vulnerability"],
   "attack_vector": "brief description of how the attack works",
   "vulnerable_code": "minimal code example that triggers the vulnerability",
@@ -84,13 +89,15 @@ Return JSON only:
 }}
 
 Focus on:
-1. What specific function/code was vulnerable
+1. What specific PACKAGE function/method was vulnerable (not library functions)
 2. What conditions must be met to trigger it
 3. Minimal reproduction code
-4. Clear before/after comparison"""
+4. Clear before/after comparison
+
+Return valid JSON only - no markdown, no backticks, no explanations, just the JSON object."""
 
         response = client.messages.create(
-            model="claude-3-sonnet-20241022",  # Use Sonnet for better code generation
+            model="claude-3-5-sonnet-20241022",  # Use Sonnet for better code generation
             max_tokens=1500,
             temperature=0.1,
             messages=[{"role": "user", "content": prompt}],
@@ -99,6 +106,7 @@ Focus on:
         # Parse Claude's response
         try:
             import json
+            import re
 
             content_block = response.content[0]
             if hasattr(content_block, "text"):
@@ -106,14 +114,30 @@ Focus on:
             else:
                 raise ValueError("Unexpected response format from Claude API")
 
-            # Clean markdown formatting
-            if claude_response.startswith("```json"):
-                claude_response = (
-                    claude_response.replace("```json", "").replace("```", "").strip()
-                )
-            elif claude_response.startswith("```"):
-                claude_response = claude_response.replace("```", "").strip()
+            # Log the raw response for debugging
+            logging.debug(f"Raw Claude response: {claude_response[:200]}...")
 
+            # Clean markdown formatting more aggressively
+            if "```json" in claude_response:
+                # Extract JSON between ```json and ```
+                json_match = re.search(r'```json\s*(.*?)\s*```', claude_response, re.DOTALL)
+                if json_match:
+                    claude_response = json_match.group(1).strip()
+            elif "```" in claude_response:
+                # Remove any ``` markers
+                claude_response = re.sub(r'```[a-zA-Z]*\s*', '', claude_response)
+                claude_response = claude_response.replace("```", "").strip()
+            
+            # Fix common JSON syntax issues
+            # Replace JavaScript template literals with double quotes
+            claude_response = re.sub(r'`([^`]*)`', r'"\1"', claude_response)
+            
+            # Try to extract JSON from text that might have extra content
+            json_match = re.search(r'\{.*\}', claude_response, re.DOTALL)
+            if json_match:
+                claude_response = json_match.group(0)
+
+            logging.debug(f"Cleaned JSON: {claude_response[:200]}...")
             poc_result = json.loads(claude_response)
 
             # Update with parsed results
@@ -138,7 +162,13 @@ Focus on:
 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logging.warning(f"Failed to parse Claude PoC response: {e}")
+            logging.warning(f"Raw response was: {claude_response[:500]}")
             poc_data["reasoning"] = f"PoC parse error: {str(e)[:100]}"
+            
+            # Try to extract some useful info even if JSON parsing fails
+            if "vulnerable" in claude_response.lower():
+                poc_data["attack_vector"] = "JSON parsing failed, but response contained vulnerability info"
+                poc_data["success"] = True
 
     except Exception as e:
         logging.error(f"PoC generation error: {e}")
