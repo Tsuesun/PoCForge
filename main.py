@@ -18,7 +18,7 @@ from cve_tracker import (
     search_security_prs,
 )
 
-# Set up logging (disabled for cleaner output)
+# Set up logging (enable ERROR and WARNING for debugging)
 logging.basicConfig(
     level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -76,10 +76,20 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
                         # Search for security fix PRs and commits
                         security_prs = search_security_prs(
-                            g, potential_repos, advisory.cve_id, pkg.name
+                            g,
+                            potential_repos,
+                            advisory.cve_id,
+                            pkg.name,
+                            advisory.published_at,
+                            advisory.summary,
                         )
                         security_commits = search_security_commits(
-                            g, potential_repos, advisory.cve_id, pkg.name
+                            g,
+                            potential_repos,
+                            advisory.cve_id,
+                            pkg.name,
+                            advisory.published_at,
+                            advisory.summary,
                         )
 
                         total_found = len(security_prs) + len(security_commits)
@@ -113,9 +123,9 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
                 print("\n" + "=" * 80)
 
-                # Limit output for PoC
-                if count >= 10:
-                    print("(Showing first 10 results...)")
+                # Limit output for manageable processing
+                if count >= 5:
+                    print("(Showing first 5 results...)")
                     break
             else:
                 # Since advisories are sorted by published date (newest first),
@@ -126,6 +136,10 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
     except Exception as e:
         print(f"Error: {e}")
+        logging.error(f"Full error details: {e}", exc_info=True)
+        import traceback
+
+        traceback.print_exc()
     finally:
         # Explicitly close the connection
         with suppress(AttributeError):
