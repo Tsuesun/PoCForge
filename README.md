@@ -109,8 +109,11 @@ uv run ruff check .
 # Type checking
 uv run mypy .
 
+# Run tests
+uv run pytest
+
 # Run all checks
-uv run ruff format . && uv run ruff check . && uv run mypy .
+uv run ruff format . && uv run ruff check . && uv run mypy . && uv run pytest
 ```
 
 ### Git Hooks
@@ -123,11 +126,39 @@ Install pre-push hooks to ensure code quality:
 
 This will automatically run formatting, linting, and type checking before each push.
 
+### Testing
+
+The project includes comprehensive tests covering all major functions:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run tests with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_main.py
+
+# Run specific test
+uv run pytest tests/test_main.py::TestGetPotentialRepos::test_npm_package_without_org
+```
+
+**Test Coverage:**
+- **Package-to-Repository Mapping**: Tests for all supported ecosystems (npm, PyPI, Maven, NuGet)
+- **Security Scoring**: Tests for PR and commit relevance scoring algorithms
+- **Repository Discovery**: Tests for GitHub API repository search functionality
+- **Search Functions**: Tests for PR and commit search with mocked GitHub API
+- **Integration**: End-to-end tests ensuring security keywords detect real vulnerabilities
+
 ### Project Structure
 
 ```
 cvetofix/
 ├── main.py              # Main application with CVE fetching and analysis
+├── tests/               # Test suite
+│   ├── __init__.py      # Test package initialization
+│   └── test_main.py     # Comprehensive tests for all functions
 ├── CLAUDE.md            # Development guidance for Claude Code
 ├── README.md            # This file
 ├── pyproject.toml       # Project configuration and dependencies
