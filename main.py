@@ -91,7 +91,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                             # HIGH CONFIDENCE: Use advisory references (95% of cases)
                             print(
                                 f"   ✅ Found {len(advisory_commits)} authoritative "
-                            f"fix commits from security advisory:"
+                                f"fix commits from security advisory:"
                             )
 
                             # Sort by score (advisory refs have score 100)
@@ -127,7 +127,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                             if hasattr(file, "patch") and file.patch:
                                                 patches.append(
                                                     f"File: {file.filename}\n"
-                                            f"{file.patch}"
+                                                    f"{file.patch}"
                                                 )
 
                                         if patches:
@@ -137,8 +137,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                             package_info = {
                                                 "name": pkg.name,
                                                 "ecosystem": pkg.ecosystem,
-                                                "vulnerable_versions": \
-vuln.vulnerable_version_range,
+                                                "vulnerable_versions": vuln.vulnerable_version_range,
                                             }
 
                                             poc_data = generate_poc_from_fix_commit(
@@ -153,11 +152,11 @@ vuln.vulnerable_version_range,
                                                 if poc_data["vulnerable_function"]:
                                                     print(
                                                         f"            🎯 Vulnerable: "
-                                                    f"{poc_data['vulnerable_function']}"
+                                                        f"{poc_data['vulnerable_function']}"
                                                     )
                                                 if poc_data["prerequisites"]:
-                                                    prereqs = ', '.join(
-                                                        poc_data['prerequisites'][:3]
+                                                    prereqs = ", ".join(
+                                                        poc_data["prerequisites"][:3]
                                                     )
                                                     print(
                                                         f"            📋 Prerequisites: {prereqs}"
@@ -165,10 +164,10 @@ vuln.vulnerable_version_range,
                                                 if poc_data["attack_vector"]:
                                                     print(
                                                         f"            💥 Attack: "
-                                                f"{poc_data['attack_vector'][:100]}..."
+                                                        f"{poc_data['attack_vector'][:100]}..."
                                                     )
                                             else:
-                                                reason = poc_data['reasoning'][:50]
+                                                reason = poc_data["reasoning"][:50]
                                                 print(
                                                     f"         ⚠️  PoC generation failed: {reason}"
                                                 )
