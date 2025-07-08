@@ -46,9 +46,7 @@ def generate_poc_from_fix_commit(
     # Check for API key
     api_key = get_anthropic_api_key()
     if not api_key:
-        poc_data["reasoning"] = (
-            "No Anthropic API key found in config.json or environment"
-        )
+        poc_data["reasoning"] = "No Anthropic API key found in config.json or environment"
         return poc_data
 
     # Skip analysis if diff is too large
@@ -124,9 +122,7 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
             # Clean markdown formatting more aggressively
             if "```json" in claude_response:
                 # Extract JSON between ```json and ```
-                json_match = re.search(
-                    r"```json\s*(.*?)\s*```", claude_response, re.DOTALL
-                )
+                json_match = re.search(r"```json\s*(.*?)\s*```", claude_response, re.DOTALL)
                 if json_match:
                     claude_response = json_match.group(1).strip()
             elif "```" in claude_response:
@@ -149,16 +145,10 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
             # Update with parsed results
             poc_data.update(
                 {
-                    "vulnerable_function": str(
-                        poc_result.get("vulnerable_function", "")
-                    )[:100],
-                    "prerequisites": poc_result.get("prerequisites", [])[
-                        :10
-                    ],  # Limit to 10 items
+                    "vulnerable_function": str(poc_result.get("vulnerable_function", ""))[:100],
+                    "prerequisites": poc_result.get("prerequisites", [])[:10],  # Limit to 10 items
                     "attack_vector": str(poc_result.get("attack_vector", ""))[:300],
-                    "vulnerable_code": str(poc_result.get("vulnerable_code", ""))[
-                        :2000
-                    ],
+                    "vulnerable_code": str(poc_result.get("vulnerable_code", ""))[:2000],
                     "fixed_code": str(poc_result.get("fixed_code", ""))[:2000],
                     "test_case": str(poc_result.get("test_case", ""))[:3000],
                     "reasoning": str(poc_result.get("reasoning", ""))[:500],
@@ -173,9 +163,7 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
 
             # Try to extract some useful info even if JSON parsing fails
             if "vulnerable" in claude_response.lower():
-                poc_data["attack_vector"] = (
-                    "JSON parsing failed, but response contained vulnerability info"
-                )
+                poc_data["attack_vector"] = "JSON parsing failed, but response contained vulnerability info"
                 poc_data["success"] = True
 
     except Exception as e:

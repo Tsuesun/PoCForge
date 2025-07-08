@@ -69,9 +69,7 @@ def calculate_security_relevance_score(
             score += 2
 
     # Additional indicators
-    if "fix" in search_text and any(
-        word in search_text for word in ["security", "vulnerability", "CVE"]
-    ):
+    if "fix" in search_text and any(word in search_text for word in ["security", "vulnerability", "CVE"]):
         score += 3  # "fix" + security terms
 
     if pr.title.lower().startswith(("fix", "security", "patch")):
@@ -115,9 +113,7 @@ def calculate_commit_security_relevance_score(
             score += 2
 
     # Additional indicators
-    if "fix" in search_text and any(
-        word in search_text for word in ["security", "vulnerability", "CVE", "redos"]
-    ):
+    if "fix" in search_text and any(word in search_text for word in ["security", "vulnerability", "CVE", "redos"]):
         score += 3  # "fix" + security terms
 
     if search_text.startswith(("fix", "security", "patch")):

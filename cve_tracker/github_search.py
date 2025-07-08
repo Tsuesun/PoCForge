@@ -51,9 +51,7 @@ def extract_commits_from_advisory_references(
                     "source": "advisory_reference",
                 }
             )
-            logging.info(
-                f"Found advisory-referenced commit: {commit_sha[:8]} in {repo_name}"
-            )
+            logging.info(f"Found advisory-referenced commit: {commit_sha[:8]} in {repo_name}")
 
     return commits
 
@@ -75,9 +73,7 @@ def find_repository(github_client: Github, repo_name: str) -> Optional[Repositor
             return github_client.get_repo(repo_name)
 
         # Search for repositories
-        repos = github_client.search_repositories(
-            query=f"{repo_name} in:name", sort="stars", order="desc"
-        )
+        repos = github_client.search_repositories(query=f"{repo_name} in:name", sort="stars", order="desc")
 
         # Return the first (most starred) matching repository
         for repo in repos:
@@ -130,9 +126,7 @@ def search_security_prs(
             logging.info(f"Searching PRs in {repo.full_name}")
 
             # Search for PRs with security-related content
-            prs = search_prs_in_repo(
-                repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description
-            )
+            prs = search_prs_in_repo(repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description)
             security_prs.extend(prs)
             logging.info(f"Found {len(prs)} relevant PRs in {repo.full_name}")
 
@@ -177,9 +171,7 @@ def search_prs_in_repo(
             # Search ±30 days around CVE publication
             start_date = cve_published_date - timedelta(days=30)
             end_date = cve_published_date + timedelta(days=30)
-            logging.info(
-                f"Searching PRs between {start_date.date()} and {end_date.date()}"
-            )
+            logging.info(f"Searching PRs between {start_date.date()} and {end_date.date()}")
             # Increase search window for date-filtered searches
             pr_limit = 50
         else:
@@ -204,10 +196,7 @@ def search_prs_in_repo(
                 pr_updated = pr.updated_at
 
                 # Include PR if it was created or updated within our date window
-                if not (
-                    (start_date <= pr_created <= end_date)
-                    or (start_date <= pr_updated <= end_date)
-                ):
+                if not ((start_date <= pr_created <= end_date) or (start_date <= pr_updated <= end_date)):
                     continue
 
             recent_prs.append(pr)
@@ -216,15 +205,11 @@ def search_prs_in_repo(
 
         for pr in recent_prs:
             logging.debug(f"Evaluating PR #{pr.number}: {pr.title}")
-            score = calculate_security_relevance_score(
-                pr, security_keywords, cve_id, cve_description
-            )
+            score = calculate_security_relevance_score(pr, security_keywords, cve_id, cve_description)
 
             # Only include PRs with some relevance
             if score > 0:
-                logging.info(
-                    f"Found relevant PR #{pr.number} with score {score}: {pr.title}"
-                )
+                logging.info(f"Found relevant PR #{pr.number} with score {score}: {pr.title}")
                 prs.append(
                     {
                         "title": pr.title,
@@ -278,9 +263,7 @@ def search_security_commits(
             logging.info(f"Searching commits in {repo.full_name}")
 
             # Search for commits with security-related content
-            commits = search_commits_in_repo(
-                repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description
-            )
+            commits = search_commits_in_repo(repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description)
             security_commits.extend(commits)
 
         except Exception as e:
@@ -323,9 +306,7 @@ def search_commits_in_repo(
             # Search ±30 days around CVE publication
             start_date = cve_published_date - timedelta(days=30)
             end_date = cve_published_date + timedelta(days=30)
-            logging.info(
-                f"Searching commits between {start_date.date()} and {end_date.date()}"
-            )
+            logging.info(f"Searching commits between {start_date.date()} and {end_date.date()}")
             # Increase search window for date-filtered searches
             commit_limit = 30  # Reduce for faster Claude processing
         else:
@@ -361,14 +342,10 @@ def search_commits_in_repo(
             # Prepare data for screening (just message and SHA)
             screening_data = []
             for commit in recent_commits:
-                screening_data.append(
-                    {"sha": commit.sha, "message": commit.commit.message}
-                )
+                screening_data.append({"sha": commit.sha, "message": commit.commit.message})
 
             # Get AI screening scores
-            screening_scores = screen_commits_with_claude(
-                screening_data, cve_description, cve_id
-            )
+            screening_scores = screen_commits_with_claude(screening_data, cve_description, cve_id)
 
             # Step 2: Detailed analysis only for AI-selected commits
             for commit in recent_commits:
@@ -378,31 +355,20 @@ def search_commits_in_repo(
 
                 # Debug: Log all screening scores
                 if screening_score > 0:
-                    logging.info(
-                        f"AI screening for {sha}: score={screening_score}, "
-                        f"msg='{short_msg}'"
-                    )
+                    logging.info(f"AI screening for {sha}: score={screening_score}, msg='{short_msg}'")
 
                 # Only do detailed analysis if AI thinks it's promising
                 if screening_score > 0:
-                    detailed_score = calculate_commit_security_relevance_score(
-                        commit, security_keywords, cve_id, cve_description
-                    )
+                    detailed_score = calculate_commit_security_relevance_score(commit, security_keywords, cve_id, cve_description)
 
                     # Combine AI screening with detailed analysis
                     final_score = detailed_score + screening_score
 
                     if final_score > 0:
-                        logging.info(
-                            f"Found relevant commit {sha} with score {final_score} "
-                            f"(s: {screening_score}, d: {detailed_score}): "
-                            f"{short_msg}..."
-                        )
+                        logging.info(f"Found relevant commit {sha} with score {final_score} (s: {screening_score}, d: {detailed_score}): {short_msg}...")
                         commits.append(
                             {
-                                "message": commit.commit.message.split("\n")[
-                                    0
-                                ],  # First line only
+                                "message": commit.commit.message.split("\n")[0],  # First line only
                                 "url": commit.html_url,
                                 "score": final_score,
                                 "repo": repo.full_name,
@@ -413,23 +379,16 @@ def search_commits_in_repo(
         else:
             # Fallback to keyword-first analysis if no CVE description
             for commit in recent_commits:
-                score = calculate_commit_security_relevance_score(
-                    commit, security_keywords, cve_id, cve_description
-                )
+                score = calculate_commit_security_relevance_score(commit, security_keywords, cve_id, cve_description)
 
                 # Only include commits with some relevance
                 if score > 0:
                     short_msg = commit.commit.message[:50]
                     sha = commit.sha[:8]
-                    logging.info(
-                        f"Found relevant commit {sha} with score {score}: "
-                        f"{short_msg}..."
-                    )
+                    logging.info(f"Found relevant commit {sha} with score {score}: {short_msg}...")
                     commits.append(
                         {
-                            "message": commit.commit.message.split("\n")[
-                                0
-                            ],  # First line only
+                            "message": commit.commit.message.split("\n")[0],  # First line only
                             "url": commit.html_url,
                             "score": score,
                             "repo": repo.full_name,

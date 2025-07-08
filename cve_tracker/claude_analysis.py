@@ -96,9 +96,7 @@ general security relevance."""
 
             # Clean markdown formatting
             if claude_response.startswith("```json"):
-                claude_response = (
-                    claude_response.replace("```json", "").replace("```", "").strip()
-                )
+                claude_response = claude_response.replace("```json", "").replace("```", "").strip()
             elif claude_response.startswith("```"):
                 claude_response = claude_response.replace("```", "").strip()
 
@@ -137,10 +135,7 @@ def _fallback_keyword_screening(commits_data: List[Dict[str, str]]) -> Dict[str,
                 score += 2
 
         # High-value patterns
-        if any(
-            pattern in message_lower
-            for pattern in ["cve-", "security", "vulnerability"]
-        ):
+        if any(pattern in message_lower for pattern in ["cve-", "security", "vulnerability"]):
             score += 5
 
         if message_lower.startswith(("fix", "security", "patch")):
@@ -181,9 +176,7 @@ def analyze_commits_batch_with_claude(
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         for commit in commits_data:
-            results[commit["sha"]]["reasoning"] = (
-                "No ANTHROPIC_API_KEY environment variable set"
-            )
+            results[commit["sha"]]["reasoning"] = "No ANTHROPIC_API_KEY environment variable set"
         return results
 
     # Skip if too many commits or total size too large
@@ -259,9 +252,7 @@ Guidelines: 0=unrelated to this vulnerability, 5=possibly related, \
 
             # Remove markdown formatting if present
             if claude_response.startswith("```json"):
-                claude_response = (
-                    claude_response.replace("```json", "").replace("```", "").strip()
-                )
+                claude_response = claude_response.replace("```json", "").replace("```", "").strip()
             elif claude_response.startswith("```"):
                 claude_response = claude_response.replace("```", "").strip()
 
@@ -273,15 +264,9 @@ Guidelines: 0=unrelated to this vulnerability, 5=possibly related, \
                 if commit_key in batch_analysis:
                     analysis = batch_analysis[commit_key]
                     results[commit["sha"]] = {
-                        "relevance_score": min(
-                            max(int(analysis.get("relevance_score", 0)), 0), 15
-                        ),
-                        "reasoning": str(
-                            analysis.get("reasoning", "No reasoning provided")
-                        )[:200],
-                        "vulnerability_type": str(
-                            analysis.get("vulnerability_type", "unknown")
-                        )[:50],
+                        "relevance_score": min(max(int(analysis.get("relevance_score", 0)), 0), 15),
+                        "reasoning": str(analysis.get("reasoning", "No reasoning provided"))[:200],
+                        "vulnerability_type": str(analysis.get("vulnerability_type", "unknown"))[:50],
                         "confidence": str(analysis.get("confidence", "low")).lower(),
                     }
 
@@ -296,9 +281,7 @@ Guidelines: 0=unrelated to this vulnerability, 5=possibly related, \
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logging.warning(f"Failed to parse Claude batch response: {e}")
             for commit in commits_data:
-                results[commit["sha"]]["reasoning"] = (
-                    f"Batch parse error: {str(e)[:50]}"
-                )
+                results[commit["sha"]]["reasoning"] = f"Batch parse error: {str(e)[:50]}"
 
     except Exception as e:
         logging.error(f"Claude batch analysis error: {e}")
@@ -308,9 +291,7 @@ Guidelines: 0=unrelated to this vulnerability, 5=possibly related, \
     return results
 
 
-def analyze_commit_with_claude(
-    commit_diff: str, cve_description: str, cve_id: Optional[str] = None
-) -> Dict[str, Any]:
+def analyze_commit_with_claude(commit_diff: str, cve_description: str, cve_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Use Claude's API to analyze a commit diff against a CVE description.
 
@@ -394,9 +375,7 @@ Return JSON only:
 
             # Remove any markdown formatting if present
             if claude_response.startswith("```json"):
-                claude_response = (
-                    claude_response.replace("```json", "").replace("```", "").strip()
-                )
+                claude_response = claude_response.replace("```json", "").replace("```", "").strip()
             elif claude_response.startswith("```"):
                 claude_response = claude_response.replace("```", "").strip()
 
@@ -405,15 +384,9 @@ Return JSON only:
             # Validate and sanitize the response
             analysis.update(
                 {
-                    "relevance_score": min(
-                        max(int(analysis_result.get("relevance_score", 0)), 0), 15
-                    ),
-                    "reasoning": str(
-                        analysis_result.get("reasoning", "No reasoning provided")
-                    )[:200],
-                    "vulnerability_type": str(
-                        analysis_result.get("vulnerability_type", "unknown")
-                    )[:50],
+                    "relevance_score": min(max(int(analysis_result.get("relevance_score", 0)), 0), 15),
+                    "reasoning": str(analysis_result.get("reasoning", "No reasoning provided"))[:200],
+                    "vulnerability_type": str(analysis_result.get("vulnerability_type", "unknown"))[:50],
                     "confidence": str(analysis_result.get("confidence", "low")).lower(),
                 }
             )
@@ -454,20 +427,14 @@ Return JSON only:
 
     except RateLimitError:
         logging.warning("Claude API rate limit exceeded")
-        analysis.update(
-            {"reasoning": "Claude API rate limit exceeded", "confidence": "low"}
-        )
+        analysis.update({"reasoning": "Claude API rate limit exceeded", "confidence": "low"})
 
     except APIError as e:
         logging.warning(f"Claude API error: {e}")
-        analysis.update(
-            {"reasoning": f"Claude API error: {str(e)[:100]}", "confidence": "low"}
-        )
+        analysis.update({"reasoning": f"Claude API error: {str(e)[:100]}", "confidence": "low"})
 
     except Exception as e:
         logging.error(f"Unexpected error in Claude analysis: {e}")
-        analysis.update(
-            {"reasoning": f"Analysis error: {str(e)[:100]}", "confidence": "low"}
-        )
+        analysis.update({"reasoning": f"Analysis error: {str(e)[:100]}", "confidence": "low"})
 
     return analysis
