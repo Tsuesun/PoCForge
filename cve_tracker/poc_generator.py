@@ -46,7 +46,9 @@ def generate_poc_from_fix_commit(
     # Check for API key
     api_key = get_anthropic_api_key()
     if not api_key:
-        poc_data["reasoning"] = "No Anthropic API key found in config.json or environment"
+        poc_data["reasoning"] = (
+            "No Anthropic API key found in config.json or environment"
+        )
         return poc_data
 
     # Skip analysis if diff is too large
@@ -120,20 +122,22 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
             # Clean markdown formatting more aggressively
             if "```json" in claude_response:
                 # Extract JSON between ```json and ```
-                json_match = re.search(r'```json\s*(.*?)\s*```', claude_response, re.DOTALL)
+                json_match = re.search(
+                    r"```json\s*(.*?)\s*```", claude_response, re.DOTALL
+                )
                 if json_match:
                     claude_response = json_match.group(1).strip()
             elif "```" in claude_response:
                 # Remove any ``` markers
-                claude_response = re.sub(r'```[a-zA-Z]*\s*', '', claude_response)
+                claude_response = re.sub(r"```[a-zA-Z]*\s*", "", claude_response)
                 claude_response = claude_response.replace("```", "").strip()
-            
+
             # Fix common JSON syntax issues
             # Replace JavaScript template literals with double quotes
-            claude_response = re.sub(r'`([^`]*)`', r'"\1"', claude_response)
-            
+            claude_response = re.sub(r"`([^`]*)`", r'"\1"', claude_response)
+
             # Try to extract JSON from text that might have extra content
-            json_match = re.search(r'\{.*\}', claude_response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", claude_response, re.DOTALL)
             if json_match:
                 claude_response = json_match.group(0)
 
@@ -164,10 +168,12 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
             logging.warning(f"Failed to parse Claude PoC response: {e}")
             logging.warning(f"Raw response was: {claude_response[:500]}")
             poc_data["reasoning"] = f"PoC parse error: {str(e)[:100]}"
-            
+
             # Try to extract some useful info even if JSON parsing fails
             if "vulnerable" in claude_response.lower():
-                poc_data["attack_vector"] = "JSON parsing failed, but response contained vulnerability info"
+                poc_data["attack_vector"] = (
+                    "JSON parsing failed, but response contained vulnerability info"
+                )
                 poc_data["success"] = True
 
     except Exception as e:

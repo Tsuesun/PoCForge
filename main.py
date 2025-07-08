@@ -167,17 +167,27 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                                         f"            💥 Attack: {poc_data['attack_vector']}"
                                                     )
                                                 if poc_data["vulnerable_code"]:
-                                                    print(f"            🐛 Vulnerable Code:")
-                                                    print(f"               {poc_data['vulnerable_code']}")
+                                                    print(
+                                                        f"            🐛 Vulnerable Code:"
+                                                    )
+                                                    print(
+                                                        f"               {poc_data['vulnerable_code']}"
+                                                    )
                                                 if poc_data["fixed_code"]:
                                                     print(f"            ✅ Fixed Code:")
-                                                    print(f"               {poc_data['fixed_code']}")
+                                                    print(
+                                                        f"               {poc_data['fixed_code']}"
+                                                    )
                                                 if poc_data["test_case"]:
                                                     print(f"            🧪 Test Case:")
-                                                    print(f"               {poc_data['test_case']}")
+                                                    print(
+                                                        f"               {poc_data['test_case']}"
+                                                    )
                                                 if poc_data["reasoning"]:
                                                     print(f"            💡 Reasoning:")
-                                                    print(f"               {poc_data['reasoning']}")
+                                                    print(
+                                                        f"               {poc_data['reasoning']}"
+                                                    )
                                             else:
                                                 reason = poc_data["reasoning"][:50]
                                                 print(
@@ -303,16 +313,18 @@ def main() -> None:
     # Get tokens from config
     token = get_github_token()
     anthropic_key = get_anthropic_api_key()
-    
+
     if not token:
         print("Tip: Add GitHub token to config.json for higher rate limits")
         logging.warning("No GITHUB_TOKEN found - using unauthenticated requests")
     else:
         logging.info(f"Using GITHUB_TOKEN from config (starts with: {token[:8]}...)")
-    
+
     if not anthropic_key:
         print("Warning: No Anthropic API key found - PoC generation will be disabled")
-        print("Add your key to config.json or set ANTHROPIC_API_KEY environment variable")
+        print(
+            "Add your key to config.json or set ANTHROPIC_API_KEY environment variable"
+        )
     else:
         logging.info("Using Anthropic API key from config")
 
