@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from main import (
+from cve_tracker import (
     calculate_commit_security_relevance_score,
     calculate_security_relevance_score,
     find_repository,
@@ -158,7 +158,7 @@ class TestSecurityRelevanceScoring:
 class TestRepositoryDiscovery:
     """Test repository discovery functionality."""
 
-    @patch("main.Github")
+    @patch("cve_tracker.github_search.Github")
     def test_find_repository_direct_path(self, mock_github_class):
         """Test finding repository with direct owner/repo path."""
         mock_github = Mock()
@@ -172,7 +172,7 @@ class TestRepositoryDiscovery:
         assert result == mock_repo
         mock_github.get_repo.assert_called_once_with("owner/repo")
 
-    @patch("main.Github")
+    @patch("cve_tracker.github_search.Github")
     def test_find_repository_search_exact_match(self, mock_github_class):
         """Test finding repository through search with exact name match."""
         mock_github = Mock()
@@ -191,7 +191,7 @@ class TestRepositoryDiscovery:
         result = find_repository(mock_github, "express")
         assert result == mock_repo1  # Should return exact match
 
-    @patch("main.Github")
+    @patch("cve_tracker.github_search.Github")
     def test_find_repository_search_first_result(self, mock_github_class):
         """Test finding repository through search, returning first result."""
         mock_github = Mock()
@@ -209,7 +209,7 @@ class TestRepositoryDiscovery:
         result = find_repository(mock_github, "package")
         assert result == mock_repo
 
-    @patch("main.Github")
+    @patch("cve_tracker.github_search.Github")
     def test_find_repository_not_found(self, mock_github_class):
         """Test repository not found scenario."""
         mock_github = Mock()
@@ -222,7 +222,7 @@ class TestRepositoryDiscovery:
         result = find_repository(mock_github, "nonexistent-package")
         assert result is None
 
-    @patch("main.Github")
+    @patch("cve_tracker.github_search.Github")
     def test_find_repository_exception_handling(self, mock_github_class):
         """Test repository search with exception handling."""
         mock_github = Mock()
@@ -266,7 +266,7 @@ class TestSearchFunctions:
         )
         return commit
 
-    @patch("main.find_repository")
+    @patch("cve_tracker.github_search.find_repository")
     def test_search_security_prs_success(self, mock_find_repo):
         """Test successful PR search."""
         mock_repo = self.create_mock_repo("test/repo")
@@ -288,7 +288,7 @@ class TestSearchFunctions:
         assert len(result) >= 1
         assert any("security" in pr["title"].lower() for pr in result)
 
-    @patch("main.find_repository")
+    @patch("cve_tracker.github_search.find_repository")
     def test_search_security_commits_success(self, mock_find_repo):
         """Test successful commit search."""
         mock_repo = self.create_mock_repo("test/repo")
@@ -314,7 +314,7 @@ class TestSearchFunctions:
         assert len(result) >= 1
         assert any("security" in commit["message"].lower() for commit in result)
 
-    @patch("main.find_repository")
+    @patch("cve_tracker.github_search.find_repository")
     def test_search_no_repository_found(self, mock_find_repo):
         """Test search when repository is not found."""
         mock_find_repo.return_value = None
@@ -328,7 +328,7 @@ class TestSearchFunctions:
         assert result_prs == []
         assert result_commits == []
 
-    @patch("main.find_repository")
+    @patch("cve_tracker.github_search.find_repository")
     def test_search_with_exception(self, mock_find_repo):
         """Test search with repository API exception."""
         mock_repo = self.create_mock_repo("test/repo")

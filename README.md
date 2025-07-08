@@ -155,7 +155,12 @@ uv run pytest tests/test_main.py::TestGetPotentialRepos::test_npm_package_withou
 
 ```
 cvetofix/
-├── main.py              # Main application with CVE fetching and analysis
+├── main.py              # Main application entry point
+├── cve_tracker/         # Core package modules
+│   ├── __init__.py      # Package initialization and exports
+│   ├── package_mapping.py    # Package-to-repository mapping logic
+│   ├── security_scoring.py   # Security relevance scoring algorithms
+│   └── github_search.py      # GitHub API search and discovery
 ├── tests/               # Test suite
 │   ├── __init__.py      # Test package initialization
 │   └── test_main.py     # Comprehensive tests for all functions
@@ -167,13 +172,25 @@ cvetofix/
 └── pre-push             # Pre-push hook for code quality
 ```
 
-## Key Functions
+## Key Modules
 
+### **main.py**
 - `fetch_recent_cves()`: Main function that orchestrates CVE discovery and analysis
+
+### **cve_tracker.package_mapping**
+- `get_potential_repos()`: Maps package names to likely repository names based on ecosystem
+
+### **cve_tracker.security_scoring**
+- `calculate_security_relevance_score()`: Scores PRs for security relevance
+- `calculate_commit_security_relevance_score()`: Scores commits for security relevance
+- `SECURITY_KEYWORDS`: Centralized list of security-related terms
+
+### **cve_tracker.github_search**
+- `find_repository()`: Discovers repositories using multiple search strategies
 - `search_security_prs()`: Finds security-related pull requests in repositories
 - `search_security_commits()`: Finds direct security fix commits (catches hotfixes)
-- `get_potential_repos()`: Maps package names to likely repository names
-- `calculate_security_relevance_score()`: Scores PRs and commits for security relevance
+- `search_prs_in_repo()`: Searches PRs within a specific repository
+- `search_commits_in_repo()`: Searches commits within a specific repository
 
 ## Configuration
 
