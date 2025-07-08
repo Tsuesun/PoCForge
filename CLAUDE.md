@@ -4,25 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a CVE (Common Vulnerabilities and Exposures) tracking tool that fetches recent security advisories from GitHub and correlates them with potentially affected packages. The tool uses PyGithub to access GitHub's security advisory API and identifies packages that may need security fixes.
+This is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix commits into practical vulnerability demonstrations. The tool extracts fix commits from advisories and uses AI to generate Proof-of-Concept code, attack vectors, and test cases for security research and education.
+
+## Important Guidelines
+
+**NEVER add co-author attribution or "Generated with Claude Code" to commits or pull requests.** The user has explicitly requested not to include any attribution to Claude or AI assistance.
 
 ## Architecture
 
-- **main.py**: Core application with two main functions:
-  - `fetch_recent_cves()`: Fetches GitHub security advisories from the last N hours
-  - `get_potential_repos()`: Maps package names to potential repository search terms based on ecosystem patterns
+- **main.py**: Core application entry point with CVE discovery and PoC generation
+- **cve_tracker/**: Modular package structure:
+  - `poc_generator.py`: AI-powered PoC generation from fix commits
+  - `github_search.py`: Advisory reference extraction and repository discovery
+  - `claude_analysis.py`: AI analysis for commit screening and detailed analysis
+  - `security_scoring.py`: Security relevance scoring algorithms
+  - `package_mapping.py`: Package-to-repository mapping logic
 - **Project uses uv** for dependency management instead of pip
-- **Single-file architecture** with focused functionality for CVE correlation
+- **Advisory-first approach** with AI fallback for maximum accuracy and efficiency
 
 ## Development Commands
 
 ### Running the Application
 ```bash
-# Run the CVE fetcher
+# Run the CVE-to-PoC generator (basic mode)
 uv run main.py
 
-# Run with higher rate limits (requires GITHUB_TOKEN env var)
+# Run with GitHub token for higher rate limits
 GITHUB_TOKEN=your_token uv run main.py
+
+# Run with full PoC generation capabilities (requires Claude API)
+GITHUB_TOKEN=your_token ANTHROPIC_API_KEY=your_claude_key uv run main.py
 ```
 
 ### Code Quality Tools

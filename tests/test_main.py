@@ -54,9 +54,7 @@ class TestGetPotentialRepos:
 
     def test_gradle_package(self):
         """Test Gradle package with group:artifact pattern."""
-        result = get_potential_repos(
-            "com.fasterxml.jackson.core:jackson-core", "gradle"
-        )
+        result = get_potential_repos("com.fasterxml.jackson.core:jackson-core", "gradle")
         assert "jackson-core" in result
 
     def test_nuget_package(self):
@@ -94,17 +92,13 @@ class TestSecurityRelevanceScoring:
     def test_pr_cve_direct_match(self):
         """Test PR scoring with direct CVE match."""
         pr = self.create_mock_pr("Fix CVE-2023-1234 vulnerability", "Security fix")
-        score = calculate_security_relevance_score(
-            pr, ["security", "fix"], "CVE-2023-1234"
-        )
+        score = calculate_security_relevance_score(pr, ["security", "fix"], "CVE-2023-1234")
         assert score >= 10  # Should get CVE match bonus
 
     def test_pr_security_keywords(self):
         """Test PR scoring with security keywords."""
         pr = self.create_mock_pr("Fix security vulnerability in auth", "XSS prevention")
-        score = calculate_security_relevance_score(
-            pr, ["security", "vulnerability", "XSS"], None
-        )
+        score = calculate_security_relevance_score(pr, ["security", "vulnerability", "XSS"], None)
         assert score > 0
         # Should get points for security, vulnerability, XSS, and fix + security combo
 
@@ -117,41 +111,31 @@ class TestSecurityRelevanceScoring:
     def test_pr_no_security_content(self):
         """Test PR with no security-related content."""
         pr = self.create_mock_pr("Add new feature", "Implements user dashboard")
-        score = calculate_security_relevance_score(
-            pr, ["security", "vulnerability"], None
-        )
+        score = calculate_security_relevance_score(pr, ["security", "vulnerability"], None)
         assert score == 0
 
     def test_commit_cve_direct_match(self):
         """Test commit scoring with direct CVE match."""
         commit = self.create_mock_commit("fix: CVE-2023-1234 buffer overflow")
-        score = calculate_commit_security_relevance_score(
-            commit, ["security", "fix"], "CVE-2023-1234"
-        )
+        score = calculate_commit_security_relevance_score(commit, ["security", "fix"], "CVE-2023-1234")
         assert score >= 10
 
     def test_commit_redos_detection(self):
         """Test commit scoring for ReDoS vulnerabilities."""
         commit = self.create_mock_commit("fix: redos vulnerability in regex pattern")
-        score = calculate_commit_security_relevance_score(
-            commit, ["redos", "regex", "fix"], None
-        )
+        score = calculate_commit_security_relevance_score(commit, ["redos", "regex", "fix"], None)
         assert score > 0
 
     def test_commit_security_prefix(self):
         """Test commit scoring with security prefix."""
         commit = self.create_mock_commit("security: patch XSS vulnerability")
-        score = calculate_commit_security_relevance_score(
-            commit, ["security", "XSS"], None
-        )
+        score = calculate_commit_security_relevance_score(commit, ["security", "XSS"], None)
         assert score > 0
 
     def test_commit_no_security_content(self):
         """Test commit with no security content."""
         commit = self.create_mock_commit("docs: update README")
-        score = calculate_commit_security_relevance_score(
-            commit, ["security", "vulnerability"], None
-        )
+        score = calculate_commit_security_relevance_score(commit, ["security", "vulnerability"], None)
         assert score == 0
 
 
@@ -253,17 +237,13 @@ class TestSearchFunctions:
         pr.merged = True if state == "closed" else None
         return pr
 
-    def create_mock_commit(
-        self, sha: str, message: str, date: str = "2023-01-01"
-    ) -> Mock:
+    def create_mock_commit(self, sha: str, message: str, date: str = "2023-01-01") -> Mock:
         """Create a mock commit."""
         commit = Mock()
         commit.sha = sha
         commit.html_url = f"https://github.com/test/repo/commit/{sha}"
         commit.commit.message = message
-        commit.commit.author.date = datetime.fromisoformat(date).replace(
-            tzinfo=timezone.utc
-        )
+        commit.commit.author.date = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
         return commit
 
     @patch("cve_tracker.github_search.find_repository")
@@ -280,9 +260,7 @@ class TestSearchFunctions:
         mock_repo.get_pulls.return_value = [pr1, pr2, pr3][:10]  # Simulate slicing
 
         mock_github = Mock()
-        result = search_security_prs(
-            mock_github, ["test-repo"], "CVE-2023-1234", "test-package"
-        )
+        result = search_security_prs(mock_github, ["test-repo"], "CVE-2023-1234", "test-package")
 
         # Should find security-related PRs
         assert len(result) >= 1
@@ -295,20 +273,14 @@ class TestSearchFunctions:
         mock_find_repo.return_value = mock_repo
 
         # Mock commits
-        commit1 = self.create_mock_commit(
-            "abc123", "fix: security vulnerability in auth"
-        )
+        commit1 = self.create_mock_commit("abc123", "fix: security vulnerability in auth")
         commit2 = self.create_mock_commit("def456", "docs: update README")
         commit3 = self.create_mock_commit("ghi789", "patch: XSS prevention")
 
-        mock_repo.get_commits.return_value = [commit1, commit2, commit3][
-            :50
-        ]  # Simulate slicing
+        mock_repo.get_commits.return_value = [commit1, commit2, commit3][:50]  # Simulate slicing
 
         mock_github = Mock()
-        result = search_security_commits(
-            mock_github, ["test-repo"], "CVE-2023-1234", "test-package"
-        )
+        result = search_security_commits(mock_github, ["test-repo"], "CVE-2023-1234", "test-package")
 
         # Should find security-related commits
         assert len(result) >= 1
@@ -321,9 +293,7 @@ class TestSearchFunctions:
 
         mock_github = Mock()
         result_prs = search_security_prs(mock_github, ["nonexistent"], None, "package")
-        result_commits = search_security_commits(
-            mock_github, ["nonexistent"], None, "package"
-        )
+        result_commits = search_security_commits(mock_github, ["nonexistent"], None, "package")
 
         assert result_prs == []
         assert result_commits == []
@@ -338,9 +308,7 @@ class TestSearchFunctions:
 
         mock_github = Mock()
         result_prs = search_security_prs(mock_github, ["test-repo"], None, "package")
-        result_commits = search_security_commits(
-            mock_github, ["test-repo"], None, "package"
-        )
+        result_commits = search_security_commits(mock_github, ["test-repo"], None, "package")
 
         # Should handle exceptions gracefully
         assert result_prs == []
@@ -391,9 +359,7 @@ class TestIntegration:
             mock_commit = Mock()
             mock_commit.commit.message = message
 
-            score = calculate_commit_security_relevance_score(
-                mock_commit, security_keywords, None
-            )
+            score = calculate_commit_security_relevance_score(mock_commit, security_keywords, None)
 
             if should_detect:
                 assert score > 0, f"Should detect security content in: {message}"
@@ -423,8 +389,5 @@ class TestIntegration:
         for ecosystem, package, should_have_results in test_cases:
             result = get_potential_repos(package, ecosystem)
             if should_have_results:
-                assert len(result) > 0, (
-                    f"Should return repos for ecosystem: {ecosystem} "
-                    f"with package: {package}"
-                )
+                assert len(result) > 0, f"Should return repos for ecosystem: {ecosystem} with package: {package}"
             assert len(result) <= 3, f"Should limit results for ecosystem: {ecosystem}"

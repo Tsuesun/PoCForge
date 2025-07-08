@@ -30,7 +30,7 @@ dev-dependencies = [
 ]
 
 [tool.ruff]
-line-length = 88
+line-length = 160
 target-version = "py38"
 exclude = [".git", "__pycache__", ".venv"]
 

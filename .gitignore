@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Configuration files with secrets
+config.json
+.env
+*.env
+secrets.json
