@@ -7,7 +7,7 @@ Analyzes fix commits to generate vulnerability demonstrations and test cases.
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import anthropic
 
@@ -57,17 +57,20 @@ def generate_poc_from_fix_commit(
         client = anthropic.Anthropic(api_key=api_key)
 
         # Create the PoC generation prompt
-        prompt = f"""Analyze this security fix commit and generate a Proof-of-Concept (PoC) demonstration.
+        prompt = f"""Analyze this security fix commit and generate a \
+Proof-of-Concept (PoC) demonstration.
 
 CVE: {cve_id}
 Vulnerability: {cve_description}
-Package: {package_info.get("name", "unknown")} ({package_info.get("ecosystem", "unknown")})
+Package: {package_info.get("name", "unknown")} \
+({package_info.get("ecosystem", "unknown")})
 Vulnerable Versions: {package_info.get("vulnerable_versions", "unknown")}
 
 Fix Commit Diff:
 {commit_diff}
 
-Generate a practical PoC that demonstrates the vulnerability. Analyze the fix to understand what was vulnerable before.
+Generate a practical PoC that demonstrates the vulnerability. \
+Analyze the fix to understand what was vulnerable before.
 
 Return JSON only:
 {{

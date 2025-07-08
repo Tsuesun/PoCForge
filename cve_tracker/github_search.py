@@ -5,13 +5,12 @@ Handles finding repositories and searching for security-related PRs and commits.
 """
 
 import logging
+import re
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from github import Github
 from github.Repository import Repository
-
-import re
 
 from .claude_analysis import screen_commits_with_claude
 from .security_scoring import (
@@ -380,7 +379,8 @@ def search_commits_in_repo(
                 # Debug: Log all screening scores
                 if screening_score > 0:
                     logging.info(
-                        f"AI screening for {sha}: score={screening_score}, msg='{short_msg}'"
+                        f"AI screening for {sha}: score={screening_score}, "
+                        f"msg='{short_msg}'"
                     )
 
                 # Only do detailed analysis if AI thinks it's promising

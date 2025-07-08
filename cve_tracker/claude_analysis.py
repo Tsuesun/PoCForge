@@ -56,7 +56,8 @@ def screen_commits_with_claude(
 
         commits_text = "\n".join(commit_summaries)
 
-        prompt = f"""Screen these {len(commits_data)} commits to find ones that might fix this specific vulnerability.
+        prompt = f"""Screen these {len(commits_data)} commits to find ones that \
+might fix this specific vulnerability.
 
 CVE: {cve_id or "Unknown"}
 Vulnerability: {cve_description}
@@ -64,15 +65,17 @@ Vulnerability: {cve_description}
 COMMITS TO SCREEN:
 {commits_text}
 
-For each commit, score (0-10) based on how well the commit message matches the specific vulnerability described above:
+For each commit, score (0-10) based on how well the commit message \
+matches the specific vulnerability described above:
 - 0: Unrelated to this vulnerability (different security issue, docs, tests, etc.)
 - 3: Generic security fix that might be related
-- 7: Commit mentions similar concepts (e.g., regex, validation, parsing) 
+- 7: Commit mentions similar concepts (e.g., regex, validation, parsing)
 - 10: Commit directly addresses this vulnerability type or mentions the CVE
 
 Return JSON: {{"commit_1": 5, "commit_2": 0, "commit_3": 8, ...}}
 
-Focus on matching the SPECIFIC vulnerability described, not just general security relevance."""
+Focus on matching the SPECIFIC vulnerability described, not just \
+general security relevance."""
 
         response = client.messages.create(
             model="claude-3-haiku-20240307",
@@ -211,7 +214,8 @@ Changes:
 
         commits_text = "\n\n".join(commit_summaries)
 
-        prompt = f"""Analyze these {len(commits_data)} commits to see if they fix the SPECIFIC vulnerability described below.
+        prompt = f"""Analyze these {len(commits_data)} commits to see if they \
+fix the SPECIFIC vulnerability described below.
 
 CVE: {cve_id or "Unknown"}
 Vulnerability: {cve_description}
@@ -219,7 +223,9 @@ Vulnerability: {cve_description}
 COMMITS TO ANALYZE:
 {commits_text}
 
-For each commit, determine if it fixes the EXACT vulnerability described above. Be strict - only high scores for commits that actually address THIS specific vulnerability type.
+For each commit, determine if it fixes the EXACT vulnerability \
+described above. Be strict - only high scores for commits that actually \
+address THIS specific vulnerability type.
 
 Return JSON:
 {{
@@ -230,7 +236,8 @@ Return JSON:
   ...
 }}
 
-Guidelines: 0=unrelated to this vulnerability, 5=possibly related, 10=likely fixes this vulnerability, 15=definitely fixes this specific CVE"""
+Guidelines: 0=unrelated to this vulnerability, 5=possibly related, \
+10=likely fixes this vulnerability, 15=definitely fixes this specific CVE"""
 
         response = client.messages.create(
             model="claude-3-haiku-20240307",
@@ -343,7 +350,8 @@ def analyze_commit_with_claude(
         client = anthropic.Anthropic(api_key=api_key)
 
         # Create the analysis prompt
-        prompt = f"""Analyze if this commit fixes the SPECIFIC vulnerability described below.
+        prompt = f"""Analyze if this commit fixes the SPECIFIC vulnerability \
+described below.
 
 CVE: {cve_id or "Unknown"}
 Vulnerability: {cve_description}

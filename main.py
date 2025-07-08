@@ -47,7 +47,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
         print(f"Fetching CVEs from the last {hours} hours...")
         print(
-            "🧪 CVE-to-PoC Generator: Creating vulnerability demonstrations from fix commits"
+            "🧪 CVE-to-PoC Generator: Creating vulnerability demonstrations "
+            "from fix commits"
         )
         print("=" * 60)
 
@@ -75,7 +76,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                         if not (pkg.name and pkg.ecosystem):
                             continue
 
-                        # First, check if advisory references contain direct commit links
+                        # First, check if advisory references contain direct \
+                        # commit links
                         advisory_commits = extract_commits_from_advisory_references(
                             advisory.references
                         )
@@ -88,7 +90,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                         if advisory_commits:
                             # HIGH CONFIDENCE: Use advisory references (95% of cases)
                             print(
-                                f"   ✅ Found {len(advisory_commits)} authoritative fix commits from security advisory:"
+                                f"   ✅ Found {len(advisory_commits)} authoritative "
+                            f"fix commits from security advisory:"
                             )
 
                             # Sort by score (advisory refs have score 100)
@@ -123,7 +126,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                         ]:  # Limit to 5 files
                                             if hasattr(file, "patch") and file.patch:
                                                 patches.append(
-                                                    f"File: {file.filename}\n{file.patch}"
+                                                    f"File: {file.filename}\n"
+                                            f"{file.patch}"
                                                 )
 
                                         if patches:
@@ -133,7 +137,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                             package_info = {
                                                 "name": pkg.name,
                                                 "ecosystem": pkg.ecosystem,
-                                                "vulnerable_versions": vuln.vulnerable_version_range,
+                                                "vulnerable_versions": \
+vuln.vulnerable_version_range,
                                             }
 
                                             poc_data = generate_poc_from_fix_commit(
@@ -144,32 +149,40 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                             )
 
                                             if poc_data["success"]:
-                                                print(f"         🧪 Generated PoC:")
+                                                print("         🧪 Generated PoC:")
                                                 if poc_data["vulnerable_function"]:
                                                     print(
-                                                        f"            🎯 Vulnerable: {poc_data['vulnerable_function']}"
+                                                        f"            🎯 Vulnerable: "
+                                                    f"{poc_data['vulnerable_function']}"
                                                     )
                                                 if poc_data["prerequisites"]:
+                                                    prereqs = ', '.join(
+                                                        poc_data['prerequisites'][:3]
+                                                    )
                                                     print(
-                                                        f"            📋 Prerequisites: {', '.join(poc_data['prerequisites'][:3])}"
+                                                        f"            📋 Prerequisites: {prereqs}"
                                                     )
                                                 if poc_data["attack_vector"]:
                                                     print(
-                                                        f"            💥 Attack: {poc_data['attack_vector'][:100]}..."
+                                                        f"            💥 Attack: "
+                                                f"{poc_data['attack_vector'][:100]}..."
                                                     )
                                             else:
+                                                reason = poc_data['reasoning'][:50]
                                                 print(
-                                                    f"         ⚠️  PoC generation failed: {poc_data['reasoning'][:50]}"
+                                                    f"         ⚠️  PoC generation failed: {reason}"
                                                 )
 
                                 except Exception as e:
                                     print(
-                                        f"         ⚠️  PoC generation error: {str(e)[:50]}"
+                                        f"         ⚠️  PoC generation error: "
+                                        f"{str(e)[:50]}"
                                     )
                         else:
                             # LOW CONFIDENCE: Fallback to AI analysis (5% of cases)
                             print(
-                                "   ⚠️  No advisory references found - falling back to AI analysis..."
+                                "   ⚠️  No advisory references found - falling back "
+                                "to AI analysis..."
                             )
 
                             # Search for PRs
@@ -202,7 +215,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
                             if total_found > 0:
                                 print(
-                                    f"   🔍 Found {total_found} potential security fixes (AI analysis):"
+                                    f"   🔍 Found {total_found} potential security "
+                                    f"fixes (AI analysis):"
                                 )
 
                                 # Show commits first (often more direct fixes)
@@ -244,10 +258,11 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                 break
 
         print(f"\nFound {count} recent CVEs")
-        print(f"📊 Analysis Summary:")
+        print("📊 Analysis Summary:")
         print(f"   Total packages analyzed: {total_packages}")
         print(
-            f"   ✅ Authoritative fixes (advisory references): {advisory_reference_count}"
+            f"   ✅ Authoritative fixes (advisory references): "
+            f"{advisory_reference_count}"
         )
         print(
             f"   🔍 AI analysis required: {total_packages - advisory_reference_count}"

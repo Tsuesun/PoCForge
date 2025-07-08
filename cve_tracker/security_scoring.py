@@ -4,12 +4,9 @@ Security relevance scoring functionality.
 Provides scoring algorithms to rank PRs and commits based on their security relevance.
 """
 
-import logging
 from typing import Any, List, Optional
 
 from github.PullRequest import PullRequest
-
-from .claude_analysis import analyze_commit_with_claude
 
 # Security-related keywords used for scoring
 SECURITY_KEYWORDS = [
