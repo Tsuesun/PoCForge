@@ -5,6 +5,7 @@ Handles finding repositories and searching for security-related PRs and commits.
 """
 
 import logging
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from github import Github
@@ -58,6 +59,8 @@ def search_security_prs(
     repo_names: List[str],
     cve_id: Optional[str],
     package_name: str,
+    cve_published_date: Optional[Any] = None,
+    cve_description: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search for PRs that look like security fixes in the given repositories.
@@ -67,6 +70,8 @@ def search_security_prs(
         repo_names: List of repository names/search terms
         cve_id: CVE ID to search for (if available)
         package_name: Name of the affected package
+        cve_published_date: CVE publication date for date-based filtering
+        cve_description: CVE description for AI-powered analysis
 
     Returns:
         List of PR information dictionaries with title, url, and relevance score
@@ -85,7 +90,9 @@ def search_security_prs(
             logging.info(f"Searching PRs in {repo.full_name}")
 
             # Search for PRs with security-related content
-            prs = search_prs_in_repo(repo, SECURITY_KEYWORDS, cve_id)
+            prs = search_prs_in_repo(
+                repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description
+            )
             security_prs.extend(prs)
             logging.info(f"Found {len(prs)} relevant PRs in {repo.full_name}")
 
@@ -101,7 +108,11 @@ def search_security_prs(
 
 
 def search_prs_in_repo(
-    repo: Repository, security_keywords: List[str], cve_id: Optional[str]
+    repo: Repository,
+    security_keywords: List[str],
+    cve_id: Optional[str],
+    cve_published_date: Optional[Any] = None,
+    cve_description: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search for security-related PRs in a specific repository.
@@ -110,6 +121,8 @@ def search_prs_in_repo(
         repo: Repository to search
         security_keywords: List of security-related keywords
         cve_id: CVE ID to search for
+        cve_published_date: CVE publication date for filtering PRs
+        cve_description: CVE description for AI-powered analysis
 
     Returns:
         List of PR information dictionaries
@@ -117,15 +130,55 @@ def search_prs_in_repo(
     prs = []
 
     try:
-        logging.info(f"Getting recent PRs from {repo.full_name}")
-        # Get recent PRs (last 10 to avoid rate limits)
-        recent_prs = repo.get_pulls(state="all", sort="updated", direction="desc")[:10]
+        logging.info(f"Getting PRs from {repo.full_name}")
 
-        logging.info(f"Processing PRs from {repo.full_name}")
+        # Calculate date range for PR search
+        if cve_published_date:
+            # Search ±30 days around CVE publication
+            start_date = cve_published_date - timedelta(days=30)
+            end_date = cve_published_date + timedelta(days=30)
+            logging.info(
+                f"Searching PRs between {start_date.date()} and {end_date.date()}"
+            )
+            # Increase search window for date-filtered searches
+            pr_limit = 50
+        else:
+            # Fallback to recent PRs if no date available
+            logging.info("No CVE date available, searching recent PRs")
+            start_date = None
+            end_date = None
+            pr_limit = 10
+
+        # Get PRs sorted by updated date
+        all_prs = repo.get_pulls(state="all", sort="updated", direction="desc")
+
+        # Filter PRs by date if we have CVE publication date
+        recent_prs: List[Any] = []
+        for pr in all_prs:
+            if len(recent_prs) >= pr_limit:
+                break
+
+            # Date filtering: check if PR was created/updated in our window
+            if start_date and end_date:
+                pr_created = pr.created_at
+                pr_updated = pr.updated_at
+
+                # Include PR if it was created or updated within our date window
+                if not (
+                    (start_date <= pr_created <= end_date)
+                    or (start_date <= pr_updated <= end_date)
+                ):
+                    continue
+
+            recent_prs.append(pr)
+
+        logging.info(f"Processing {len(recent_prs)} PRs from {repo.full_name}")
 
         for pr in recent_prs:
             logging.debug(f"Evaluating PR #{pr.number}: {pr.title}")
-            score = calculate_security_relevance_score(pr, security_keywords, cve_id)
+            score = calculate_security_relevance_score(
+                pr, security_keywords, cve_id, cve_description
+            )
 
             # Only include PRs with some relevance
             if score > 0:
@@ -156,6 +209,8 @@ def search_security_commits(
     repo_names: List[str],
     cve_id: Optional[str],
     package_name: str,
+    cve_published_date: Optional[Any] = None,
+    cve_description: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search for commits that look like security fixes in the given repositories.
@@ -165,6 +220,8 @@ def search_security_commits(
         repo_names: List of repository names/search terms
         cve_id: CVE ID to search for (if available)
         package_name: Name of the affected package
+        cve_published_date: CVE publication date for date-based filtering
+        cve_description: CVE description for AI-powered analysis
 
     Returns:
         List of commit information dictionaries
@@ -181,7 +238,9 @@ def search_security_commits(
             logging.info(f"Searching commits in {repo.full_name}")
 
             # Search for commits with security-related content
-            commits = search_commits_in_repo(repo, SECURITY_KEYWORDS, cve_id)
+            commits = search_commits_in_repo(
+                repo, SECURITY_KEYWORDS, cve_id, cve_published_date, cve_description
+            )
             security_commits.extend(commits)
 
         except Exception as e:
@@ -195,7 +254,11 @@ def search_security_commits(
 
 
 def search_commits_in_repo(
-    repo: Repository, security_keywords: List[str], cve_id: Optional[str]
+    repo: Repository,
+    security_keywords: List[str],
+    cve_id: Optional[str],
+    cve_published_date: Optional[Any] = None,
+    cve_description: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Search for security-related commits in a specific repository.
@@ -204,6 +267,8 @@ def search_commits_in_repo(
         repo: Repository to search
         security_keywords: List of security-related keywords
         cve_id: CVE ID to search for
+        cve_published_date: CVE publication date for filtering commits
+        cve_description: CVE description for AI-powered analysis
 
     Returns:
         List of commit information dictionaries
@@ -211,14 +276,49 @@ def search_commits_in_repo(
     commits = []
 
     try:
-        # Get recent commits (last 50 to catch more fixes)
-        recent_commits = repo.get_commits()[:50]
+        logging.info(f"Getting commits from {repo.full_name}")
 
-        logging.info(f"Processing commits from {repo.full_name}")
+        # Calculate date range for commit search
+        if cve_published_date:
+            # Search ±30 days around CVE publication
+            start_date = cve_published_date - timedelta(days=30)
+            end_date = cve_published_date + timedelta(days=30)
+            logging.info(
+                f"Searching commits between {start_date.date()} and {end_date.date()}"
+            )
+            # Increase search window for date-filtered searches
+            commit_limit = 30  # Reduce for faster Claude processing
+        else:
+            # Fallback to recent commits if no date available
+            logging.info("No CVE date available, searching recent commits")
+            start_date = None
+            end_date = None
+            commit_limit = 20  # Reduce for faster processing
+
+        # Get commits sorted by commit date
+        all_commits = repo.get_commits()
+
+        # Filter commits by date if we have CVE publication date
+        recent_commits: List[Any] = []
+        for commit in all_commits:
+            if len(recent_commits) >= commit_limit:
+                break
+
+            # Date filtering: check if commit was created within our window
+            if start_date and end_date:
+                commit_date = commit.commit.author.date
+
+                # Include commit if it was created within our date window
+                if not (start_date <= commit_date <= end_date):
+                    continue
+
+            recent_commits.append(commit)
+
+        logging.info(f"Processing {len(recent_commits)} commits from {repo.full_name}")
 
         for commit in recent_commits:
             score = calculate_commit_security_relevance_score(
-                commit, security_keywords, cve_id
+                commit, security_keywords, cve_id, cve_description
             )
 
             # Only include commits with some relevance

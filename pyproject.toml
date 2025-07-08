@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Track CVEs and correlate with GitHub PRs"
 requires-python = ">=3.8"
 dependencies = [
+    "anthropic>=0.57.1",
     "PyGithub>=2.1.1",
 ]
 
