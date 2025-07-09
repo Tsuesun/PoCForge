@@ -9,6 +9,7 @@ from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import typer
 from github import Github
 
 from cve_tracker import extract_commits_from_advisory_references
@@ -19,13 +20,14 @@ from cve_tracker.poc_generator import generate_poc_from_fix_commit
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
+def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: Optional[str] = None) -> None:
     """
     Fetch and print CVEs from the last N hours using PyGithub.
 
     Args:
         token: GitHub personal access token (optional)
         hours: Hours to look back (default: 24)
+        target_cve: Specific CVE ID to target (e.g., CVE-2024-1234)
     """
     # Calculate date threshold (timezone-aware)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -34,139 +36,166 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
     g = Github(token) if token else Github()
 
     try:
-        # Get security advisories
-        logging.info("Fetching global advisories from GitHub...")
-        advisories = g.get_global_advisories()
+        if target_cve:
+            print(f"Targeting specific CVE: {target_cve}")
+            print("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
+            print("=" * 60)
 
-        print(f"Fetching CVEs from the last {hours} hours...")
-        print("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
-        print("=" * 60)
+            # Direct CVE lookup using GitHub API filtering
+            logging.info(f"Searching for specific CVE: {target_cve}")
+            try:
+                # Use direct CVE ID filtering instead of fetching all advisories
+                advisories = g.get_global_advisories(cve_id=target_cve)
+
+                # PyGithub returns a PaginatedList, check if it has any results
+                # by accessing the first page
+                try:
+                    first_page = advisories.get_page(0)
+                    if not first_page:
+                        print(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
+                        return
+                except Exception:
+                    print(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
+                    return
+
+            except Exception as e:
+                print(f"❌ Error searching for CVE {target_cve}: {e}")
+                return
+        else:
+            print(f"Fetching CVEs from the last {hours} hours...")
+            print("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
+            print("=" * 60)
+
+            # Get security advisories for time-based search
+            # Note: GitHub API doesn't support time filtering, so we fetch recent ones
+            logging.info("Fetching global advisories from GitHub...")
+            advisories = g.get_global_advisories()
 
         count = 0
         total_packages = 0
         poc_generated_count = 0
         for advisory in advisories:
-            # Check if published recently
-            if advisory.published_at and advisory.published_at >= since:
-                count += 1
-
-                print(f"\n🚨 CVE: {advisory.cve_id or 'N/A'}")
-                print(f"📝 Summary: {advisory.summary}")
-                print(f"⚠️  Severity: {advisory.severity.upper()}")
-                print(f"📅 Published: {advisory.published_at}")
-
-                # Focus on affected packages for PR correlation
-                if advisory.vulnerabilities:
-                    for vuln in advisory.vulnerabilities:
-                        pkg = vuln.package
-                        print(f"\n📦 Package: {pkg.name} ({pkg.ecosystem})")
-                        print(f"   Vulnerable: {vuln.vulnerable_version_range}")
-                        print(f"   Patched: {vuln.patched_versions}")
-
-                        if not (pkg.name and pkg.ecosystem):
-                            continue
-
-                        # Extract fix commits from advisory references
-                        advisory_commits = extract_commits_from_advisory_references(advisory.references)
-
-                        total_packages += 1
-
-                        if advisory_commits:
-                            print(f"   ✅ Found {len(advisory_commits)} fix commits from security advisory:")
-
-                            for commit_info in advisory_commits:
-                                message = commit_info["message"]
-                                print(f"      🔧 {message}")
-                                print(f"         📄 {commit_info['url']}")
-                                print(f"         🏢 {commit_info['repo']}")
-                                print(f"         📅 {commit_info['date']}")
-
-                                # Generate PoC from fix commit
-                                try:
-                                    # Extract commit SHA from URL
-                                    commit_sha = commit_info["sha"]
-                                    repo_name = commit_info["repo"]
-
-                                    # Get the actual commit object to fetch diff
-                                    repo_obj = g.get_repo(repo_name)
-                                    commit_obj = repo_obj.get_commit(commit_sha)
-
-                                    # Get commit diff
-                                    commit_files = list(commit_obj.files)
-                                    if commit_files:
-                                        # Combine patches from all files
-                                        patches = []
-                                        for file in commit_files[:5]:  # Limit to 5 files
-                                            if hasattr(file, "patch") and file.patch:
-                                                patches.append(f"File: {file.filename}\n{file.patch}")
-
-                                        if patches:
-                                            combined_diff = "\n\n".join(patches)
-
-                                            # Log diff size for debugging
-                                            diff_size = len(combined_diff)
-                                            if diff_size > 12000:
-                                                logging.info(f"Large diff detected ({diff_size} chars) - will truncate intelligently")
-
-                                            # Generate PoC
-                                            package_info = {
-                                                "name": pkg.name or "unknown",
-                                                "ecosystem": pkg.ecosystem or "unknown",
-                                                "vulnerable_versions": vuln.vulnerable_version_range or "unknown",
-                                            }
-
-                                            poc_data = generate_poc_from_fix_commit(
-                                                combined_diff,
-                                                advisory.summary,
-                                                advisory.cve_id or "Unknown",
-                                                package_info,
-                                                repo_url=commit_info["repo"],
-                                                commit_sha=commit_info["sha"],
-                                            )
-
-                                            if poc_data["success"]:
-                                                poc_generated_count += 1
-                                                method_note = ""
-                                                if diff_size > 12000:
-                                                    method_note = " (using git extraction)"
-                                                print(f"         🧪 Generated PoC{method_note}:")
-                                                if poc_data["vulnerable_function"]:
-                                                    print(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
-                                                if poc_data["prerequisites"]:
-                                                    prereqs = ", ".join(poc_data["prerequisites"][:3])
-                                                    print(f"            📋 Prerequisites: {prereqs}")
-                                                if poc_data["attack_vector"]:
-                                                    print(f"            💥 Attack: {poc_data['attack_vector']}")
-                                                if poc_data["vulnerable_code"]:
-                                                    print("            🐛 Vulnerable Code:")
-                                                    print(f"               {poc_data['vulnerable_code']}")
-                                                if poc_data["fixed_code"]:
-                                                    print("            ✅ Fixed Code:")
-                                                    print(f"               {poc_data['fixed_code']}")
-                                                if poc_data["test_case"]:
-                                                    print("            🧪 Test Case:")
-                                                    print(f"               {poc_data['test_case']}")
-                                                if poc_data["reasoning"]:
-                                                    print("            💡 Reasoning:")
-                                                    print(f"               {poc_data['reasoning']}")
-                                            else:
-                                                reason = poc_data["reasoning"][:50]
-                                                print(f"         ⚠️  PoC generation failed: {reason}")
-
-                                except Exception as e:
-                                    print(f"         ⚠️  PoC generation error: {str(e)[:50]}")
-                        else:
-                            print("   ❌ No fix commits found in advisory references")
-
-                print("\n" + "=" * 80)
-
-                # Limit output for manageable processing
-                if count >= 5:
-                    print("(Showing first 5 results...)")
-                    break
-            else:
+            # For time-based search, check if published recently
+            if not target_cve and advisory.published_at and advisory.published_at < since:
                 # Since advisories are sorted by published date (newest first),
                 # once we hit an old one, we can stop
+                break
+
+            count += 1
+
+            print(f"\n🚨 CVE: {advisory.cve_id or 'N/A'}")
+            print(f"📝 Summary: {advisory.summary}")
+            print(f"⚠️  Severity: {advisory.severity.upper()}")
+            print(f"📅 Published: {advisory.published_at}")
+
+            # Focus on affected packages for PR correlation
+            if advisory.vulnerabilities:
+                for vuln in advisory.vulnerabilities:
+                    pkg = vuln.package
+                    print(f"\n📦 Package: {pkg.name} ({pkg.ecosystem})")
+                    print(f"   Vulnerable: {vuln.vulnerable_version_range}")
+                    print(f"   Patched: {vuln.patched_versions}")
+
+                    if not (pkg.name and pkg.ecosystem):
+                        continue
+
+                    # Extract fix commits from advisory references
+                    advisory_commits = extract_commits_from_advisory_references(advisory.references)
+
+                    total_packages += 1
+
+                    if advisory_commits:
+                        print(f"   ✅ Found {len(advisory_commits)} fix commits from security advisory:")
+
+                        for commit_info in advisory_commits:
+                            message = commit_info["message"]
+                            print(f"      🔧 {message}")
+                            print(f"         📄 {commit_info['url']}")
+                            print(f"         🏢 {commit_info['repo']}")
+                            print(f"         📅 {commit_info['date']}")
+
+                            # Generate PoC from fix commit
+                            try:
+                                # Extract commit SHA from URL
+                                commit_sha = commit_info["sha"]
+                                repo_name = commit_info["repo"]
+
+                                # Get the actual commit object to fetch diff
+                                repo_obj = g.get_repo(repo_name)
+                                commit_obj = repo_obj.get_commit(commit_sha)
+
+                                # Get commit diff
+                                commit_files = list(commit_obj.files)
+                                if commit_files:
+                                    # Combine patches from all files
+                                    patches = []
+                                    for file in commit_files[:5]:  # Limit to 5 files
+                                        if hasattr(file, "patch") and file.patch:
+                                            patches.append(f"File: {file.filename}\n{file.patch}")
+
+                                    if patches:
+                                        combined_diff = "\n\n".join(patches)
+
+                                        # Log diff size for debugging
+                                        diff_size = len(combined_diff)
+                                        if diff_size > 12000:
+                                            logging.info(f"Large diff detected ({diff_size} chars) - will truncate intelligently")
+
+                                        # Generate PoC
+                                        package_info = {
+                                            "name": pkg.name or "unknown",
+                                            "ecosystem": pkg.ecosystem or "unknown",
+                                            "vulnerable_versions": vuln.vulnerable_version_range or "unknown",
+                                        }
+
+                                        poc_data = generate_poc_from_fix_commit(
+                                            combined_diff,
+                                            advisory.summary,
+                                            advisory.cve_id or "Unknown",
+                                            package_info,
+                                            repo_url=commit_info["repo"],
+                                            commit_sha=commit_info["sha"],
+                                        )
+
+                                        if poc_data["success"]:
+                                            poc_generated_count += 1
+                                            method_note = ""
+                                            if diff_size > 12000:
+                                                method_note = " (using git extraction)"
+                                            print(f"         🧪 Generated PoC{method_note}:")
+                                            if poc_data["vulnerable_function"]:
+                                                print(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
+                                            if poc_data["prerequisites"]:
+                                                prereqs = ", ".join(poc_data["prerequisites"][:3])
+                                                print(f"            📋 Prerequisites: {prereqs}")
+                                            if poc_data["attack_vector"]:
+                                                print(f"            💥 Attack: {poc_data['attack_vector']}")
+                                            if poc_data["vulnerable_code"]:
+                                                print("            🐛 Vulnerable Code:")
+                                                print(f"               {poc_data['vulnerable_code']}")
+                                            if poc_data["fixed_code"]:
+                                                print("            ✅ Fixed Code:")
+                                                print(f"               {poc_data['fixed_code']}")
+                                            if poc_data["test_case"]:
+                                                print("            🧪 Test Case:")
+                                                print(f"               {poc_data['test_case']}")
+                                            if poc_data["reasoning"]:
+                                                print("            💡 Reasoning:")
+                                                print(f"               {poc_data['reasoning']}")
+                                        else:
+                                            reason = poc_data["reasoning"][:50]
+                                            print(f"         ⚠️  PoC generation failed: {reason}")
+
+                            except Exception as e:
+                                print(f"         ⚠️  PoC generation error: {str(e)[:50]}")
+                    else:
+                        print("   ❌ No fix commits found in advisory references")
+
+            print("\n" + "=" * 80)
+
+            # Limit output for manageable processing
+            if not target_cve and count >= 5:
+                print("(Showing first 5 results...)")
                 break
 
         print(f"\nFound {count} recent CVEs")
@@ -189,8 +218,22 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
             g.close()
 
 
-def main() -> None:
-    """Main function"""
+app = typer.Typer(help="PoCForge - CVE-to-PoC Generator")
+
+
+@app.command()
+def main(
+    hours: int = typer.Option(24, "--hours", "-h", help="Hours to look back for recent CVEs"),
+    cve: Optional[str] = typer.Option(None, "--cve", "-c", help="Target specific CVE (e.g., CVE-2024-1234)"),
+) -> None:
+    """
+    PoCForge - Generate Proof-of-Concept demonstrations from CVE fix commits.
+
+    Examples:
+        uv run main.py                          # Last 24 hours
+        uv run main.py --hours 48               # Last 48 hours
+        uv run main.py --cve CVE-2024-1234      # Specific CVE
+    """
     print("PoCForge - CVE-to-PoC Generator")
 
     # Get tokens from config
@@ -209,8 +252,8 @@ def main() -> None:
     else:
         logging.info("Using Anthropic API key from config")
 
-    fetch_recent_cves(token, hours=24)  # Back to 24 hours for testing
+    fetch_recent_cves(token, hours=hours, target_cve=cve)
 
 
 if __name__ == "__main__":
-    main()
+    app()

@@ -212,7 +212,7 @@ class TestMainFunctionality:
         from main import main
 
         with suppress(SystemExit):
-            main()  # Expected if no data to process
+            main(hours=24, cve=None)  # Pass the required parameters
 
         # Verify GitHub client was created without token
         mock_github.assert_called_with()
