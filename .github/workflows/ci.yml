@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.12
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Check code formatting
+      run: uv run ruff format --check .
+    
+    - name: Run linting
+      run: uv run ruff check .
+    
+    - name: Run type checking
+      run: uv run mypy .
+    
+    - name: Run tests
+      run: uv run pytest tests/ -v
+    
+    - name: Test basic functionality (dry run)
+      run: |
+        # Test that the app can start and parse basic arguments
+        timeout 10s uv run python main.py || [ $? -eq 124 ]
+      env:
+        # Use dummy values for testing - app will timeout before making API calls
+        GITHUB_TOKEN: "dummy_token_for_testing"
+        ANTHROPIC_API_KEY: "dummy_key_for_testing"
