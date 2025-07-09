@@ -7,7 +7,7 @@ Generates Proof-of-Concept demonstrations from CVE fix commits. Extracts fix com
 ```
 🚨 CVE: CVE-2025-53539
 📝 Summary: fastapi-guard is vulnerable to ReDoS through inefficient regex
-⚠️  Severity: MEDIUM
+⚠️ Severity: MEDIUM
 📅 Published: 2025-07-07 23:36:39+00:00
 🔗 Advisory: https://github.com/advisories/GHSA-j47q-rc62-w448
 
