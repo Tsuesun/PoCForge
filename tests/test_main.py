@@ -216,3 +216,291 @@ class TestMainFunctionality:
 
         # Verify GitHub client was created without token
         mock_github.assert_called_with()
+
+
+class TestJSONOutput:
+    """Test JSON output functionality."""
+
+    def setup_method(self):
+        """Setup common mocks for JSON tests."""
+        self.mock_github_token = None
+        self.mock_anthropic_key = None
+        self.mock_g = Mock()
+        self.mock_advisory = Mock()
+        self.mock_advisory.cve_id = "CVE-2024-1234"
+        self.mock_advisory.summary = "Test vulnerability"
+        self.mock_advisory.severity = "HIGH"
+        self.mock_advisory.published_at = Mock()
+        self.mock_advisory.published_at.isoformat.return_value = "2024-01-01T00:00:00Z"
+        self.mock_advisory.vulnerabilities = []
+        self.mock_advisory.references = []
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    @patch("sys.stdout", new_callable=Mock)
+    def test_json_output_flag_produces_valid_json(self, mock_stdout, mock_github, mock_anthropic_key, mock_github_token):
+        """Test that --json flag produces valid JSON output."""
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock advisories with single advisory
+        mock_advisories = Mock()
+        mock_advisories.__iter__ = Mock(return_value=iter([self.mock_advisory]))
+        mock_advisories.get_page.return_value = [self.mock_advisory]
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, hours=24, target_cve="CVE-2024-1234", json_output=True)
+
+        # Parse and validate JSON
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate JSON structure
+        assert "search_params" in json_data
+        assert "cves" in json_data
+        assert "summary" in json_data
+        assert json_data["search_params"]["target_cve"] == "CVE-2024-1234"
+        assert json_data["search_params"]["hours"] == 24
+        assert "timestamp" in json_data["search_params"]
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    @patch("builtins.print")
+    def test_json_output_suppresses_human_readable_text(self, mock_print, mock_github, mock_anthropic_key, mock_github_token):
+        """Test that JSON mode suppresses all human-readable output."""
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock empty advisories
+        mock_advisories = Mock()
+        mock_advisories.__iter__ = Mock(return_value=iter([]))
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        from main import fetch_recent_cves
+
+        fetch_recent_cves(token=None, hours=24, json_output=True)
+
+        # Check that human-readable messages were not printed
+        printed_calls = [call for call in mock_print.call_args_list if call[0]]
+        human_readable_calls = [call for call in printed_calls if "🧪 PoCForge" in str(call) or "Fetching CVEs" in str(call)]
+
+        # Only JSON output should be printed
+        assert len(human_readable_calls) == 0, f"Found human-readable output in JSON mode: {human_readable_calls}"
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    def test_json_output_with_specific_cve(self, mock_github, mock_anthropic_key, mock_github_token):
+        """Test JSON output with specific CVE targeting."""
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock advisories with CVE match
+        mock_advisories = Mock()
+        mock_advisories.__iter__ = Mock(return_value=iter([self.mock_advisory]))
+        mock_advisories.get_page.return_value = [self.mock_advisory]
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, target_cve="CVE-2024-1234", json_output=True)
+
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate CVE-specific search
+        assert json_data["search_params"]["target_cve"] == "CVE-2024-1234"
+        assert len(json_data["cves"]) == 1
+        assert json_data["cves"][0]["cve_id"] == "CVE-2024-1234"
+        assert json_data["summary"]["total_cves"] == 1
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    def test_json_output_with_time_based_search(self, mock_github, mock_anthropic_key, mock_github_token):
+        """Test JSON output with time-based search."""
+        from datetime import datetime, timedelta, timezone
+
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock recent advisory
+        self.mock_advisory.published_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        mock_advisories = Mock()
+        mock_advisories.__iter__ = Mock(return_value=iter([self.mock_advisory]))
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, hours=24, json_output=True)
+
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate time-based search
+        assert json_data["search_params"]["hours"] == 24
+        assert json_data["search_params"]["target_cve"] is None
+        assert len(json_data["cves"]) == 1
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    def test_json_output_error_handling(self, mock_github, mock_anthropic_key, mock_github_token):
+        """Test JSON output error handling."""
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock GitHub API error
+        self.mock_g.get_global_advisories.side_effect = Exception("API Error")
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, target_cve="CVE-2024-1234", json_output=True)
+
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate error is captured in JSON
+        assert "error" in json_data
+        assert "API Error" in json_data["error"]
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    def test_json_output_structure_validation(self, mock_github, mock_anthropic_key, mock_github_token):
+        """Test that JSON output has correct structure."""
+        from datetime import datetime, timedelta, timezone
+
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock advisory with vulnerability data and proper datetime
+        mock_vuln = Mock()
+        mock_package = Mock()
+        mock_package.name = "test-package"
+        mock_package.ecosystem = "npm"
+        mock_vuln.package = mock_package
+        mock_vuln.vulnerable_version_range = "< 1.0.0"
+        mock_vuln.patched_versions = ">= 1.0.0"
+
+        self.mock_advisory.vulnerabilities = [mock_vuln]
+        self.mock_advisory.published_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        mock_advisories = Mock()
+        mock_advisories.__iter__ = Mock(return_value=iter([self.mock_advisory]))
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, hours=24, json_output=True)
+
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate complete JSON structure
+        assert "search_params" in json_data
+        assert "cves" in json_data
+        assert "summary" in json_data
+
+        # Validate search_params structure
+        search_params = json_data["search_params"]
+        assert "hours" in search_params
+        assert "target_cve" in search_params
+        assert "timestamp" in search_params
+
+        # Validate CVE structure
+        if json_data["cves"]:
+            cve = json_data["cves"][0]
+            assert "cve_id" in cve
+            assert "summary" in cve
+            assert "severity" in cve
+            assert "published_at" in cve
+            assert "packages" in cve
+            assert "pocs_generated" in cve
+
+            # Validate package structure
+            if cve["packages"]:
+                package = cve["packages"][0]
+                assert "name" in package
+                assert "ecosystem" in package
+                assert "vulnerable_versions" in package
+                assert "patched_versions" in package
+                assert "commits" in package
+                assert "pocs" in package
+
+        # Validate summary structure
+        summary = json_data["summary"]
+        assert "total_cves" in summary
+        assert "total_packages" in summary
+        assert "pocs_generated" in summary
+        assert "success_rate" in summary
+
+    @patch("main.get_github_token")
+    @patch("main.get_anthropic_api_key")
+    @patch("main.Github")
+    def test_json_output_cve_not_found(self, mock_github, mock_anthropic_key, mock_github_token):
+        """Test JSON output when CVE is not found."""
+        mock_github_token.return_value = self.mock_github_token
+        mock_anthropic_key.return_value = self.mock_anthropic_key
+        mock_github.return_value = self.mock_g
+
+        # Mock empty advisories (CVE not found)
+        mock_advisories = Mock()
+        mock_advisories.get_page.return_value = []
+        self.mock_g.get_global_advisories.return_value = mock_advisories
+
+        import json
+        from io import StringIO
+
+        from main import fetch_recent_cves
+
+        # Capture stdout
+        captured_output = StringIO()
+        with patch("sys.stdout", captured_output):
+            fetch_recent_cves(token=None, target_cve="CVE-9999-9999", json_output=True)
+
+        output = captured_output.getvalue()
+        json_data = json.loads(output)
+
+        # Validate error handling for not found CVE
+        assert "error" in json_data
+        assert "CVE-9999-9999 not found" in json_data["error"]

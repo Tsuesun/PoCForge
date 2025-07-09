@@ -55,6 +55,27 @@ uv run ruff check --fix .
 uv run mypy .
 ```
 
+### Testing and Coverage
+```bash
+# Run tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=. --cov=cve_tracker
+
+# Generate coverage report
+uv run coverage report
+
+# Generate HTML coverage report
+uv run coverage html
+
+# Run coverage and generate both terminal and HTML reports
+uv run pytest --cov=. --cov=cve_tracker --cov-report=term-missing --cov-report=html
+
+# View coverage percentage only
+uv run coverage report --show-missing
+```
+
 ### Git Hooks
 - Pre-push hook automatically runs ruff format --check, ruff check, and mypy
 - Install hooks: `./setup-hooks.sh`

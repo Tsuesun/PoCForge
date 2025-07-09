@@ -16,6 +16,8 @@ dev = [
     "pytest>=7.0.0",
     "pytest-mock>=3.10.0",
     "responses>=0.23.0",
+    "coverage>=7.0.0",
+    "pytest-cov>=4.0.0",
 ]
 
 [project.scripts]
@@ -28,6 +30,8 @@ dev-dependencies = [
     "pytest>=7.0.0",
     "pytest-mock>=3.10.0",
     "responses>=0.23.0",
+    "coverage>=7.0.0",
+    "pytest-cov>=4.0.0",
 ]
 
 [tool.ruff]
@@ -52,3 +56,32 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = [".", "cve_tracker"]
+omit = [
+    "tests/*",
+    ".venv/*",
+    "setup.py",
+    "conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+skip_covered = false
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"
