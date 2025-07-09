@@ -14,13 +14,12 @@ This is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix comm
 
 - **main.py**: Core application entry point with CVE discovery and PoC generation
 - **cve_tracker/**: Modular package structure:
-  - `poc_generator.py`: AI-powered PoC generation from fix commits
-  - `github_search.py`: Advisory reference extraction and repository discovery
-  - `claude_analysis.py`: AI analysis for commit screening and detailed analysis
-  - `security_scoring.py`: Security relevance scoring algorithms
-  - `package_mapping.py`: Package-to-repository mapping logic
+  - `poc_generator.py`: AI-powered PoC generation from fix commits using Claude API
+  - `github_search.py`: Advisory reference extraction (commit URLs from security advisories)
+  - `config.py`: Configuration management for API keys (GitHub token, Anthropic API key)
 - **Project uses uv** for dependency management instead of pip
-- **Advisory-first approach** with AI fallback for maximum accuracy and efficiency
+- **Advisory-first approach**: 95%+ of GitHub Security Advisories contain direct fix commit references
+- **Simplified architecture**: Removed complex AI analysis and repository discovery logic
 
 ## Development Commands
 
@@ -59,13 +58,39 @@ uv run mypy .
 - Install hooks: `./setup-hooks.sh`
 - Bypass hook (not recommended): `git push --no-verify`
 
-## Package Ecosystem Mapping
+### Git Workflow
+```bash
+# Squash commits on feature branches
+git rebase -i HEAD~n  # where n is number of commits to squash
 
-The `get_potential_repos()` function handles different package ecosystems:
-- **npm**: Handles org/package patterns and direct package names
-- **pypi**: Converts between hyphens and underscores in package names
-- **maven/gradle**: Extracts artifact names from group:artifact patterns
-- **nuget**: Direct package name mapping
+# Rebase feature branch onto master before merging
+git checkout feature-branch
+git rebase master
+
+# Alternative: fetch and rebase in one command
+git pull --rebase origin master
+```
+
+**Preferred workflow:**
+1. Create feature branch from master
+2. Make commits during development
+3. Before creating PR: squash commits into logical units
+4. Rebase onto latest master to avoid merge commits
+5. Create PR with clean commit history
+
+## Configuration
+
+The application uses a config.json file for API keys:
+```json
+{
+  "github_token": "your_github_token",
+  "anthropic_api_key": "your_anthropic_api_key"
+}
+```
+
+Environment variables override config file values:
+- `GITHUB_TOKEN`: GitHub personal access token
+- `ANTHROPIC_API_KEY`: Anthropic Claude API key
 
 ## Key Dependencies
 
