@@ -11,12 +11,7 @@ from typing import Optional
 
 from github import Github
 
-from cve_tracker import (
-    extract_commits_from_advisory_references,
-    get_potential_repos,
-    search_security_commits,
-    search_security_prs,
-)
+from cve_tracker import extract_commits_from_advisory_references
 from cve_tracker.config import get_anthropic_api_key, get_github_token
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
@@ -48,8 +43,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
         print("=" * 60)
 
         count = 0
-        advisory_reference_count = 0
         total_packages = 0
+        poc_generated_count = 0
         for advisory in advisories:
             # Check if published recently
             if advisory.published_at and advisory.published_at >= since:
@@ -71,25 +66,17 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                         if not (pkg.name and pkg.ecosystem):
                             continue
 
-                        # First, check if advisory references contain direct \
-                        # commit links
+                        # Extract fix commits from advisory references
                         advisory_commits = extract_commits_from_advisory_references(advisory.references)
 
                         total_packages += 1
-                        if advisory_commits:
-                            advisory_reference_count += 1
 
-                        # Restructured approach: Advisory-first, AI fallback
                         if advisory_commits:
-                            # HIGH CONFIDENCE: Use advisory references (95% of cases)
-                            print(f"   ✅ Found {len(advisory_commits)} authoritative fix commits from security advisory:")
+                            print(f"   ✅ Found {len(advisory_commits)} fix commits from security advisory:")
 
-                            # Sort by score (advisory refs have score 100)
-                            advisory_commits.sort(key=lambda x: x["score"], reverse=True)
                             for commit_info in advisory_commits:
-                                score = commit_info["score"]
                                 message = commit_info["message"]
-                                print(f"      🔧 {message} (Score: {score})")
+                                print(f"      🔧 {message}")
                                 print(f"         📄 {commit_info['url']}")
                                 print(f"         🏢 {commit_info['repo']}")
                                 print(f"         📅 {commit_info['date']}")
@@ -131,6 +118,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                             )
 
                                             if poc_data["success"]:
+                                                poc_generated_count += 1
                                                 print("         🧪 Generated PoC:")
                                                 if poc_data["vulnerable_function"]:
                                                     print(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
@@ -158,58 +146,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                 except Exception as e:
                                     print(f"         ⚠️  PoC generation error: {str(e)[:50]}")
                         else:
-                            # LOW CONFIDENCE: Fallback to AI analysis (5% of cases)
-                            print("   ⚠️  No advisory references found - falling back to AI analysis...")
-
-                            # Search for PRs
-                            potential_repos = get_potential_repos(pkg.name, pkg.ecosystem)
-                            if not potential_repos:
-                                print("   ❌ No potential repositories found")
-                                continue
-
-                            # Search for security fix PRs and commits using AI
-                            security_prs = search_security_prs(
-                                g,
-                                potential_repos,
-                                advisory.cve_id,
-                                pkg.name,
-                                advisory.published_at,
-                                advisory.summary,
-                            )
-                            security_commits = search_security_commits(
-                                g,
-                                potential_repos,
-                                advisory.cve_id,
-                                pkg.name,
-                                advisory.published_at,
-                                advisory.summary,
-                            )
-
-                            total_found = len(security_prs) + len(security_commits)
-
-                            if total_found > 0:
-                                print(f"   🔍 Found {total_found} potential security fixes (AI analysis):")
-
-                                # Show commits first (often more direct fixes)
-                                security_commits.sort(key=lambda x: x["score"], reverse=True)
-                                for commit_info in security_commits:
-                                    score = commit_info["score"]
-                                    message = commit_info["message"]
-                                    print(f"      🔧 {message} (Score: {score})")
-                                    print(f"         📄 {commit_info['url']}")
-                                    print(f"         🏢 {commit_info['repo']}")
-                                    print(f"         📅 {commit_info['date']}")
-
-                                # Then show PRs
-                                for pr_info in security_prs:
-                                    state_icon = "🟢" if pr_info["state"] == "open" else "🔴"
-                                    score = pr_info["score"]
-                                    title = pr_info["title"]
-                                    print(f"      {state_icon} {title} (Score: {score})")
-                                    print(f"         📄 {pr_info['url']}")
-                                    print(f"         🏢 {pr_info['repo']}")
-                            else:
-                                print("   ❌ No security-related PRs or commits found")
+                            print("   ❌ No fix commits found in advisory references")
 
                 print("\n" + "=" * 80)
 
@@ -223,15 +160,12 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                 break
 
         print(f"\nFound {count} recent CVEs")
-        print("📊 Analysis Summary:")
+        print("📊 PoC Generation Summary:")
         print(f"   Total packages analyzed: {total_packages}")
-        print(f"   ✅ Authoritative fixes (advisory references): {advisory_reference_count}")
-        print(f"   🔍 AI analysis required: {total_packages - advisory_reference_count}")
+        print(f"   🧪 PoCs generated: {poc_generated_count}")
         if total_packages > 0:
-            coverage = (advisory_reference_count / total_packages) * 100
-            ai_savings = coverage
-            print(f"   📈 Advisory coverage: {coverage:.1f}%")
-            print(f"   💰 AI cost savings: {ai_savings:.1f}%")
+            success_rate = (poc_generated_count / total_packages) * 100
+            print(f"   📈 PoC generation rate: {success_rate:.1f}%")
 
     except Exception as e:
         print(f"Error: {e}")
