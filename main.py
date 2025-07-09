@@ -185,9 +185,34 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                 # Get commit diff
                                 commit_files = list(commit_obj.files)
                                 if commit_files:
-                                    # Combine patches from all files
+                                    # Combine patches from all files, prioritizing code files
                                     patches = []
-                                    for file in commit_files[:5]:  # Limit to 5 files
+
+                                    # Prioritize code files (Python, JS, Java, etc.) over documentation
+                                    code_extensions = {
+                                        ".py",
+                                        ".js",
+                                        ".java",
+                                        ".rs",
+                                        ".go",
+                                        ".cpp",
+                                        ".c",
+                                        ".h",
+                                        ".tsx",
+                                        ".ts",
+                                        ".php",
+                                        ".rb",
+                                        ".cs",
+                                        ".swift",
+                                        ".kt",
+                                    }
+                                    code_files = [f for f in commit_files if any(f.filename.endswith(ext) for ext in code_extensions)]
+                                    other_files = [f for f in commit_files if not any(f.filename.endswith(ext) for ext in code_extensions)]
+
+                                    # Process code files first, then other files, but limit to 5 total
+                                    selected_files = (code_files + other_files)[:5]
+
+                                    for file in selected_files:
                                         if hasattr(file, "patch") and file.patch:
                                             patches.append(f"File: {file.filename}\n{file.patch}")
 

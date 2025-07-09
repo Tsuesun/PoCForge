@@ -149,11 +149,13 @@ Vulnerable Versions: {package_info.get("vulnerable_versions", "unknown")}
 Fix Commit Diff:
 {commit_diff}{context_note}
 
-Generate a practical PoC that demonstrates the vulnerability. \
-Analyze the fix to understand what was vulnerable before.
+Extract the actual vulnerable and fixed code from the commit diff. \
+Look for lines that were removed (-) as vulnerable code and lines that were added (+) as fixed code.
 
 IMPORTANT: Return ONLY valid JSON, no additional text or explanations.
 Use double quotes for all strings. Do NOT use backticks or template literals.
+For multi-line code blocks, use \\n for newlines and escape all quotes with \\.
+Ensure all strings are properly JSON-escaped.
 
 For vulnerable_function: Identify the SPECIFIC function/method in the {package_info.get("name", "unknown")} package
 that was vulnerable, NOT the low-level library function it calls. Look for function definitions in the diff
@@ -163,17 +165,17 @@ that was vulnerable, NOT the low-level library function it calls. Look for funct
   "vulnerable_function": "ClassName.method_name or function_name from the package being fixed",
   "prerequisites": ["list", "of", "conditions", "needed", "for", "vulnerability"],
   "attack_vector": "brief description of how the attack works",
-  "vulnerable_code": "minimal code example that triggers the vulnerability",
-  "fixed_code": "same code but with the fix applied",
-  "test_case": "complete test case showing vulnerable vs fixed behavior",
+  "vulnerable_code": "EXACT code that was removed in the diff (lines starting with -), showing the vulnerable implementation",
+  "fixed_code": "EXACT code that was added in the diff (lines starting with +), showing how the vulnerability was fixed",
+  "test_case": "complete test case that demonstrates the vulnerability - show both the vulnerable behavior and how it's fixed",
   "reasoning": "explanation of the vulnerability and fix"
 }}
 
 Focus on:
-1. What specific PACKAGE function/method was vulnerable (not library functions)
-2. What conditions must be met to trigger it
-3. Minimal reproduction code
-4. Clear before/after comparison
+1. Extract the ACTUAL vulnerable code from removed lines (-) in the diff - preserve original formatting
+2. Extract the ACTUAL fixed code from added lines (+) in the diff - preserve original formatting
+3. Show the real before/after comparison from the commit, not synthetic examples
+4. Generate a test case that would fail with the vulnerable code but pass with the fixed code
 
 Return valid JSON only - no markdown, no backticks, no explanations, just the JSON object."""
 
@@ -219,7 +221,25 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
                 claude_response = json_match.group(0)
 
             logging.debug(f"Cleaned JSON: {claude_response[:200]}...")
-            poc_result = json.loads(claude_response)
+
+            # Try to parse JSON with better error handling
+            try:
+                poc_result = json.loads(claude_response)
+            except json.JSONDecodeError as e:
+                # If JSON parsing fails, try to fix common issues
+                logging.warning(f"Initial JSON parse failed: {e}")
+
+                # Try to fix unescaped quotes in code blocks
+                # Look for patterns like "vulnerable_code": "...code with "quotes"..."
+                fixed_response = re.sub(r'("vulnerable_code"\s*:\s*"[^"]*)"([^"]*)"([^"]*")', r'\1\\"\\2\\"\\3', claude_response)
+                fixed_response = re.sub(r'("fixed_code"\s*:\s*"[^"]*)"([^"]*)"([^"]*")', r'\1\\"\\2\\"\\3', fixed_response)
+
+                try:
+                    poc_result = json.loads(fixed_response)
+                    logging.info("JSON parsing succeeded after quote fixing")
+                except json.JSONDecodeError:
+                    # If still failing, extract what we can
+                    raise e from None
 
             # Update with parsed results
             poc_data.update(
@@ -242,7 +262,16 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
 
             # Try to extract some useful info even if JSON parsing fails
             if "vulnerable" in claude_response.lower():
-                poc_data["attack_vector"] = "JSON parsing failed, but response contained vulnerability info"
+                # Extract vulnerable_function if possible
+                func_match = re.search(r'"vulnerable_function":\s*"([^"]+)"', claude_response)
+                if func_match:
+                    poc_data["vulnerable_function"] = func_match.group(1)
+
+                # Extract attack_vector if possible
+                attack_match = re.search(r'"attack_vector":\s*"([^"]+)"', claude_response)
+                if attack_match:
+                    poc_data["attack_vector"] = attack_match.group(1)
+
                 poc_data["success"] = True
 
     except Exception as e:

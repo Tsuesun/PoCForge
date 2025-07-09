@@ -102,39 +102,56 @@ uv run main.py
 📝 Summary: fastapi-guard is vulnerable to ReDoS through inefficient regex
 ⚠️  Severity: MEDIUM
 📅 Published: 2025-07-07 23:36:39+00:00
+🔗 Advisory: https://github.com/advisories/GHSA-j47q-rc62-w448
 
 📦 Package: fastapi-guard (pip)
    Vulnerable: <= 3.0.0
-   Patched: None
-   ✅ Found 1 authoritative fix commits from security advisory:
-      🔧 Fix commit referenced in security advisory (Score: 100)
+   Patched: unknown
+   ✅ Found 1 fix commits from security advisory:
+      🔧 Fix commit referenced in security advisory
          📄 https://github.com/rennf93/fastapi-guard/commit/d9d50e8130b7b434cdc1b001b8cfd03a06729f7f
          🏢 rennf93/fastapi-guard
          📅 Referenced in advisory
-         🧪 Generated PoC:
-            🎯 Vulnerable: IPValidator.validate_ip
-            📋 Prerequisites: fastapi-guard <= 3.0.0, Application using IP validation, Malicious input
-            💥 Attack: Sending specially crafted IP patterns that cause regex backtracking
+         🧪 Generated PoC (using git extraction):
+            🎯 Vulnerable: fetch_azure_ip_ranges
+            📋 Prerequisites: fastapi-guard <= 3.0.0 installed, Network access to download.microsoft.com, Ability to send HTTP requests to the API
+            💥 Attack: ReDoS via unbounded regex pattern matching in URL parsing
             🐛 Vulnerable Code:
-               from fastapi_guard import IPValidator
-               validator = IPValidator()
-               result = validator.validate_ip('1.1.' + '1' * 100000)
+               pattern = r'href=["'](https://download\.microsoft\.com/' r'.*?\.json)["']'
             ✅ Fixed Code:
-               # Fixed version with bounded quantifiers
-               validator = IPValidator()  # v3.0.1+
+               pattern = r'href=["'](https://download\.microsoft\.com/.{1,500}?\.json)["']'
             🧪 Test Case:
+               import re
                import time
-               malicious_ip = '1.1.' + '1' * 100000
-               start = time.time()
-               validator.validate_ip(malicious_ip)
-               duration = time.time() - start
-               assert duration < 1, 'ReDoS detected!'
 
-📊 Analysis Summary:
-   Total packages analyzed: 5
-   ✅ Authoritative fixes (advisory references): 5
-   📈 Advisory coverage: 100.0%
-   💰 AI cost savings: 100.0%
+               def test_redos():
+                   # Malicious input with many characters between domain and .json
+                   evil_input = 'href="https://download.microsoft.com/' + 'a' * 1000000 + '.json"'
+                   
+                   # Vulnerable pattern
+                   vuln_pattern = r'href=["'](https://download\.microsoft\.com/.*?\.json)["']'
+                   start = time.time()
+                   re.search(vuln_pattern, evil_input)
+                   vuln_time = time.time() - start
+                   
+                   # Fixed pattern
+                   fixed_pattern = r'href=["'](https://download\.microsoft\.com/.{1,500}?\.json)["']'
+                   start = time.time()
+                   re.search(fixed_pattern, evil_input)
+                   fixed_time = time.time() - start
+                   
+                   # Fixed version should complete much faster
+                   assert fixed_time < vuln_time
+            💡 Reasoning:
+               The original code used an unbounded wildcard (.*?) in the regex pattern which could be exploited with a very long input string to cause catastrophic backtracking. The fix adds a specific length limit {1,500} to prevent excessive backtracking while still matching valid URLs.
+
+================================================================================
+
+Found 1 recent CVEs
+📊 PoC Generation Summary:
+   Total packages analyzed: 1
+   🧪 PoCs generated: 1
+   📈 PoC generation rate: 100.0%
 ```
 
 ## 🧠 How It Works
