@@ -232,6 +232,7 @@ class TestJSONOutput:
         self.mock_advisory.severity = "HIGH"
         self.mock_advisory.published_at = Mock()
         self.mock_advisory.published_at.isoformat.return_value = "2024-01-01T00:00:00Z"
+        self.mock_advisory.html_url = "https://github.com/advisories/GHSA-test-1234"
         self.mock_advisory.vulnerabilities = []
         self.mock_advisory.references = []
 
