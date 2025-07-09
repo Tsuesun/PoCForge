@@ -78,7 +78,6 @@ uv run coverage report --show-missing
 
 #### Coverage Integration
 - **CI**: GitHub Actions automatically runs coverage on all PRs and pushes
-- **Codecov**: Optional external coverage tracking (requires `CODECOV_TOKEN` secret)
 - **Reports**: HTML coverage reports generated in `htmlcov/` directory
 - **Current Coverage**: 48.05% baseline with detailed missing line reports
 
