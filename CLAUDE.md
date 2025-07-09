@@ -10,6 +10,8 @@ PoCForge is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix 
 
 **NEVER add co-author attribution or "Generated with Claude Code" to commits or pull requests.** The user has explicitly requested not to include any attribution to Claude or AI assistance.
 
+**Avoid marketing language in PRs and commits.** Use straightforward, technical descriptions. Avoid words like "powerful", "amazing", "revolutionary", etc. The code should speak for itself.
+
 ## Architecture
 
 - **main.py**: Core application entry point with CVE discovery and PoC generation
