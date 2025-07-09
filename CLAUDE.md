@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix commits into practical vulnerability demonstrations. The tool extracts fix commits from advisories and uses AI to generate Proof-of-Concept code, attack vectors, and test cases for security research and education.
+PoCForge is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix commits into practical vulnerability demonstrations. The tool extracts fix commits from advisories and uses AI to generate Proof-of-Concept code, attack vectors, and test cases for security research and education.
 
 ## Important Guidelines
 
@@ -25,7 +25,7 @@ This is a CVE-to-PoC Generator that transforms GitHub Security Advisory fix comm
 
 ### Running the Application
 ```bash
-# Run the CVE-to-PoC generator (basic mode)
+# Run PoCForge (basic mode)
 uv run main.py
 
 # Run with GitHub token for higher rate limits

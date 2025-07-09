@@ -1,5 +1,5 @@
 """
-Tests for the CVE-to-PoC Generator main functionality.
+Tests for PoCForge main functionality.
 """
 
 import os
@@ -76,13 +76,14 @@ class TestPoCGeneration:
             assert "No Anthropic API key" in result["reasoning"]
 
     def test_generate_poc_diff_too_large(self):
-        """Test PoC generation with diff too large."""
-        with patch("cve_tracker.poc_generator.get_anthropic_api_key", return_value="dummy-key"):
+        """Test PoC generation with diff too large - should use git extraction or truncate."""
+        with patch("cve_tracker.poc_generator.get_anthropic_api_key", return_value=None):
             large_diff = "diff --git a/file.py b/file.py\n" + "+" + "x" * 15000
             result = generate_poc_from_fix_commit(large_diff, "Test vulnerability", "CVE-2023-1234", {"name": "test-package", "ecosystem": "pypi"})
 
             assert result["success"] is False
-            assert "too large" in result["reasoning"]
+            # Should fail due to no API key, not size (since we now handle large diffs)
+            assert "No Anthropic API key" in result["reasoning"]
 
     @patch("cve_tracker.poc_generator.get_anthropic_api_key")
     @patch("cve_tracker.poc_generator.anthropic.Anthropic")
@@ -140,6 +141,18 @@ class TestPoCGeneration:
 
         assert result["success"] is False
         assert "parse error" in result["reasoning"]
+
+    def test_generate_poc_with_git_extraction(self):
+        """Test PoC generation with git extraction for large diffs."""
+        with patch("cve_tracker.poc_generator.get_anthropic_api_key", return_value=None):
+            large_diff = "diff --git a/file.py b/file.py\n" + "+" + "x" * 15000
+            result = generate_poc_from_fix_commit(
+                large_diff, "Test vulnerability", "CVE-2023-1234", {"name": "test-package", "ecosystem": "pypi"}, repo_url="test/repo", commit_sha="abc123"
+            )
+
+            assert result["success"] is False
+            # Should fail due to no API key, but git extraction should have been attempted
+            assert "No Anthropic API key" in result["reasoning"]
 
 
 class TestConfig:

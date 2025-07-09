@@ -1,16 +1,74 @@
 """
-CVE Proof-of-Concept (PoC) Generator.
+PoCForge - CVE Proof-of-Concept (PoC) Generator.
 
 Analyzes fix commits to generate vulnerability demonstrations and test cases.
 """
 
 import logging
 import re
-from typing import Any, Dict
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 import anthropic
 
 from .config import get_anthropic_api_key
+
+
+def _extract_changed_functions_with_git(repo_url: str, commit_sha: str) -> str:
+    """
+    Use git to extract only the changed function bodies from a commit.
+
+    Args:
+        repo_url: GitHub repository URL (e.g., "owner/repo")
+        commit_sha: Commit SHA to analyze
+
+    Returns:
+        Focused diff showing only changed function bodies
+    """
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir) / "repo"
+
+            # Clone the repository (shallow clone for speed)
+            clone_cmd = ["git", "clone", "--depth", "10", f"https://github.com/{repo_url}.git", str(repo_path)]
+            subprocess.run(clone_cmd, check=True, capture_output=True)
+
+            # Get function-context diff
+            diff_cmd = [
+                "git",
+                "show",
+                "--format=",  # No commit message
+                "-W",  # Show whole function context
+                "--no-patch-with-stat",  # No stats
+                commit_sha,
+            ]
+
+            result = subprocess.run(diff_cmd, cwd=repo_path, check=True, capture_output=True, text=True)
+
+            # If still too large, try with minimal context
+            if len(result.stdout) > 15000:
+                logging.info("Function context still large, using minimal context")
+                diff_cmd = [
+                    "git",
+                    "show",
+                    "--format=",  # No commit message
+                    "-U3",  # 3 lines of context
+                    "--no-patch-with-stat",
+                    commit_sha,
+                ]
+
+                result = subprocess.run(diff_cmd, cwd=repo_path, check=True, capture_output=True, text=True)
+
+            return result.stdout
+
+    except subprocess.CalledProcessError as e:
+        logging.warning(f"Git command failed: {e}")
+        return f"[Git extraction failed: {e}]"
+    except Exception as e:
+        logging.warning(f"Git extraction error: {e}")
+        return f"[Git extraction error: {e}]"
 
 
 def generate_poc_from_fix_commit(
@@ -18,6 +76,8 @@ def generate_poc_from_fix_commit(
     cve_description: str,
     cve_id: str,
     package_info: Dict[str, str],
+    repo_url: Optional[str] = None,
+    commit_sha: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a Proof-of-Concept from a fix commit diff.
@@ -49,15 +109,34 @@ def generate_poc_from_fix_commit(
         poc_data["reasoning"] = "No Anthropic API key found in config.json or environment"
         return poc_data
 
-    # Skip analysis if diff is too large
+    # Handle large diffs using git extraction
     if len(commit_diff) > 12000:  # 12KB limit
-        poc_data["reasoning"] = "Commit diff too large for PoC generation"
-        return poc_data
+        logging.info(f"Large commit diff ({len(commit_diff)} chars), using git extraction")
+        if repo_url and commit_sha:
+            git_diff = _extract_changed_functions_with_git(repo_url, commit_sha)
+            if not git_diff.startswith("[Git extraction"):
+                commit_diff = git_diff
+                logging.info(f"Git extraction successful, new size: {len(commit_diff)} chars")
+            else:
+                logging.warning("Git extraction failed, using original diff truncated")
+                commit_diff = commit_diff[:10000] + "\n... [diff truncated due to size]"
+        else:
+            logging.warning("No repo/commit info for git extraction, truncating diff")
+            commit_diff = commit_diff[:10000] + "\n... [diff truncated due to size]"
 
     try:
         client = anthropic.Anthropic(api_key=api_key)
 
         # Create the PoC generation prompt
+        is_git_extracted = "git show" in commit_diff or len(commit_diff) > 12000
+        is_truncated = "[diff truncated" in commit_diff
+
+        context_note = ""
+        if is_git_extracted and not is_truncated:
+            context_note = "\n\nNOTE: This diff was extracted using git with full function context for better analysis."
+        elif is_truncated:
+            context_note = "\n\nNOTE: This diff has been truncated due to size. Generate the best PoC possible with the available information."
+
         prompt = f"""Analyze this security fix commit and generate a \
 Proof-of-Concept (PoC) demonstration.
 
@@ -68,7 +147,7 @@ Package: {package_info.get("name", "unknown")} \
 Vulnerable Versions: {package_info.get("vulnerable_versions", "unknown")}
 
 Fix Commit Diff:
-{commit_diff}
+{commit_diff}{context_note}
 
 Generate a practical PoC that demonstrates the vulnerability. \
 Analyze the fix to understand what was vulnerable before.

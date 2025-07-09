@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple GitHub CVE Fetcher using PyGithub with uv
+PoCForge - CVE-to-PoC Generator using PyGithub with uv
 Run with: uv run main.py
 """
 
@@ -39,7 +39,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
         advisories = g.get_global_advisories()
 
         print(f"Fetching CVEs from the last {hours} hours...")
-        print("🧪 CVE-to-PoC Generator: Creating vulnerability demonstrations from fix commits")
+        print("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
         print("=" * 60)
 
         count = 0
@@ -103,6 +103,11 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                         if patches:
                                             combined_diff = "\n\n".join(patches)
 
+                                            # Log diff size for debugging
+                                            diff_size = len(combined_diff)
+                                            if diff_size > 12000:
+                                                logging.info(f"Large diff detected ({diff_size} chars) - will truncate intelligently")
+
                                             # Generate PoC
                                             package_info = {
                                                 "name": pkg.name or "unknown",
@@ -115,11 +120,16 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
                                                 advisory.summary,
                                                 advisory.cve_id or "Unknown",
                                                 package_info,
+                                                repo_url=commit_info["repo"],
+                                                commit_sha=commit_info["sha"],
                                             )
 
                                             if poc_data["success"]:
                                                 poc_generated_count += 1
-                                                print("         🧪 Generated PoC:")
+                                                method_note = ""
+                                                if diff_size > 12000:
+                                                    method_note = " (using git extraction)"
+                                                print(f"         🧪 Generated PoC{method_note}:")
                                                 if poc_data["vulnerable_function"]:
                                                     print(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
                                                 if poc_data["prerequisites"]:
@@ -181,7 +191,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24) -> None:
 
 def main() -> None:
     """Main function"""
-    print("CVE-to-PoC Generator")
+    print("PoCForge - CVE-to-PoC Generator")
 
     # Get tokens from config
     token = get_github_token()
