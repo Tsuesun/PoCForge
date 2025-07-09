@@ -110,6 +110,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                 "summary": advisory.summary,
                 "severity": advisory.severity.upper() if advisory.severity else "UNKNOWN",
                 "published_at": advisory.published_at.isoformat() if advisory.published_at else None,
+                "advisory_url": advisory.html_url,
                 "packages": [],
                 "pocs_generated": 0,
             }
@@ -119,6 +120,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                 print(f"📝 Summary: {cve_data['summary']}")
                 print(f"⚠️  Severity: {cve_data['severity']}")
                 print(f"📅 Published: {advisory.published_at}")
+                print(f"🔗 Advisory: {advisory.html_url}")
 
             # Focus on affected packages for PR correlation
             if advisory.vulnerabilities:
