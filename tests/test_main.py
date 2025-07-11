@@ -160,56 +160,9 @@ class TestPoCGeneration:
             # Should fail due to no API key, but git extraction should have been attempted
             assert "No Anthropic API key" in result["reasoning"]
 
-    def test_extract_vulnerability_context_parameters(self):
-        """Test parameter extraction from commit diff."""
-        from cve_tracker.poc_generator import extract_vulnerability_context
+    # Test removed: extract_vulnerability_context function was removed as dead code
 
-        # Test commit diff with Python function
-        commit_diff = """
-        diff --git a/file.py b/file.py
-        -def vulnerable_function(user_input, file_path, mode="r"):
-        +def secure_function(user_input, file_path, mode="r"):
-        """
-
-        context = extract_vulnerability_context(commit_diff, "Test vulnerability")
-
-        # Risk factors and attack surface are now handled by Claude for better accuracy
-        assert context["risk_factors"] == []
-        assert context["attack_surface"] == []
-
-        # Should extract function signatures
-        assert len(context["function_signatures"]) > 0
-        # Check that at least one signature contains the function pattern
-        has_function_sig = any("vulnerable_function" in sig or "secure_function" in sig for sig in context["function_signatures"])
-        assert has_function_sig
-
-    def test_risk_factors_and_attack_surface(self):
-        """Test that risk factors and attack surface are properly extracted."""
-        from cve_tracker.poc_generator import extract_vulnerability_context
-
-        # Test commit diff with various risk indicators
-        commit_diff = """
-        diff --git a/file.java b/file.java
-        -public void stopInternal() {
-        -    for (SocketWrapper socketWrapper : connections.values()) {
-        -        this.lockManager = new LockManager();
-        -        socketWrapper.close();
-        -    }
-        -}
-        +public void stopInternal() {
-        +    for (SocketWrapper socketWrapper : connections.values()) {
-        +        this.lockManager = new SafeLockManager();
-        +        socketWrapper.close();
-        +    }
-        +}
-        """
-
-        context = extract_vulnerability_context(commit_diff, "Test vulnerability")
-
-        # Risk factors and attack surface are now handled by Claude for better accuracy
-        assert context["risk_factors"] == []
-        assert context["attack_surface"] == []
-        assert context["config_changes"] == []
+    # Test removed: extract_vulnerability_context function was removed as dead code
 
 
 class TestConfig:
