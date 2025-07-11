@@ -31,6 +31,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
         target_cve: Specific CVE ID to target (e.g., CVE-2024-1234)
         json_output: Output results in JSON format instead of human-readable
     """
+    # Collect all output data to display at the end (after logging)
+    output_lines = []
     # Calculate date threshold (timezone-aware)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
@@ -47,11 +49,11 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
     try:
         if not json_output:
             if target_cve:
-                print(f"Targeting specific CVE: {target_cve}")
+                output_lines.append(f"Targeting specific CVE: {target_cve}")
             else:
-                print(f"Fetching CVEs from the last {hours} hours...")
-            print("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
-            print("=" * 60)
+                output_lines.append(f"Fetching CVEs from the last {hours} hours...")
+            output_lines.append("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
+            output_lines.append("=" * 80)
 
         if target_cve:
             # Direct CVE lookup using GitHub API filtering
@@ -66,14 +68,14 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                     first_page = advisories.get_page(0)
                     if not first_page:
                         if not json_output:
-                            print(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
+                            output_lines.append(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
                         else:
                             results["error"] = f"CVE {target_cve} not found in GitHub Security Advisories"
                             print(json.dumps(results, indent=2))
                         return
                 except Exception:
                     if not json_output:
-                        print(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
+                        output_lines.append(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
                     else:
                         results["error"] = f"CVE {target_cve} not found in GitHub Security Advisories"
                         print(json.dumps(results, indent=2))
@@ -81,7 +83,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
 
             except Exception as e:
                 if not json_output:
-                    print(f"❌ Error searching for CVE {target_cve}: {e}")
+                    output_lines.append(f"❌ Error searching for CVE {target_cve}: {e}")
                 else:
                     results["error"] = f"Error searching for CVE {target_cve}: {e}"
                     print(json.dumps(results, indent=2))
@@ -116,11 +118,11 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
             }
 
             if not json_output:
-                print(f"\n🚨 CVE: {cve_data['cve_id']}")
-                print(f"📝 Summary: {cve_data['summary']}")
-                print(f"⚠️  Severity: {cve_data['severity']}")
-                print(f"📅 Published: {advisory.published_at}")
-                print(f"🔗 Advisory: {advisory.html_url}")
+                output_lines.append(f"\n🚨 CVE: {cve_data['cve_id']}")
+                output_lines.append(f"📝 Summary: {cve_data['summary']}")
+                output_lines.append(f"⚠️  Severity: {cve_data['severity']}")
+                output_lines.append(f"📅 Published: {advisory.published_at}")
+                output_lines.append(f"🔗 Advisory: {advisory.html_url}")
 
             # Focus on affected packages for PR correlation
             if advisory.vulnerabilities:
@@ -138,9 +140,9 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                     }
 
                     if not json_output:
-                        print(f"\n📦 Package: {package_data['name']} ({package_data['ecosystem']})")
-                        print(f"   Vulnerable: {package_data['vulnerable_versions']}")
-                        print(f"   Patched: {package_data['patched_versions']}")
+                        output_lines.append(f"\n📦 Package: {package_data['name']} ({package_data['ecosystem']})")
+                        output_lines.append(f"   Vulnerable: {package_data['vulnerable_versions']}")
+                        output_lines.append(f"   Patched: {package_data['patched_versions']}")
 
                     if not (pkg.name and pkg.ecosystem):
                         continue
@@ -152,7 +154,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
 
                     if advisory_commits:
                         if not json_output:
-                            print(f"   ✅ Found {len(advisory_commits)} fix commits from security advisory:")
+                            output_lines.append(f"   ✅ Found {len(advisory_commits)} fix commits from security advisory:")
 
                         for commit_info in advisory_commits:
                             # Add commit info to package data
@@ -167,10 +169,10 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
 
                             if not json_output:
                                 message = commit_info["message"]
-                                print(f"      🔧 {message}")
-                                print(f"         📄 {commit_info['url']}")
-                                print(f"         🏢 {commit_info['repo']}")
-                                print(f"         📅 {commit_info['date']}")
+                                output_lines.append(f"      🔧 {message}")
+                                output_lines.append(f"         📄 {commit_info['url']}")
+                                output_lines.append(f"         🏢 {commit_info['repo']}")
+                                output_lines.append(f"         📅 {commit_info['date']}")
 
                             # Generate PoC from fix commit
                             try:
@@ -252,6 +254,9 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                                     "commit_url": commit_info["url"],
                                                     "commit_sha": commit_info["sha"],
                                                     "vulnerable_function": poc_data.get("vulnerable_function"),
+                                                    "function_signature": poc_data.get("function_signature"),
+                                                    "risk_factors": poc_data.get("risk_factors", []),
+                                                    "attack_surface": poc_data.get("attack_surface", []),
                                                     "attack_vector": poc_data.get("attack_vector"),
                                                     "vulnerable_code": poc_data.get("vulnerable_code"),
                                                     "fixed_code": poc_data.get("fixed_code"),
@@ -263,44 +268,53 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                             )
 
                                             if not json_output:
-                                                print(f"         🧪 Generated PoC{method_note}:")
+                                                output_lines.append(f"         🧪 Generated PoC{method_note}:")
                                                 if poc_data["vulnerable_function"]:
-                                                    print(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
+                                                    output_lines.append(f"            🎯 Vulnerable: {poc_data['vulnerable_function']}")
+                                                if poc_data.get("function_signature"):
+                                                    output_lines.append(f"            📝 Signature: {poc_data['function_signature']}")
+                                                # Display risk factors and attack surface
+                                                if poc_data.get("risk_factors"):
+                                                    risks = ", ".join(poc_data["risk_factors"][:3])
+                                                    output_lines.append(f"            ⚠️  Risk Factors: {risks}")
+                                                if poc_data.get("attack_surface"):
+                                                    surface = ", ".join(poc_data["attack_surface"][:3])
+                                                    output_lines.append(f"            🎯 Attack Surface: {surface}")
                                                 if poc_data["prerequisites"]:
                                                     prereqs = ", ".join(poc_data["prerequisites"][:3])
-                                                    print(f"            📋 Prerequisites: {prereqs}")
+                                                    output_lines.append(f"            📋 Prerequisites: {prereqs}")
                                                 if poc_data["attack_vector"]:
-                                                    print(f"            💥 Attack: {poc_data['attack_vector']}")
+                                                    output_lines.append(f"            💥 Attack: {poc_data['attack_vector']}")
                                                 if poc_data["vulnerable_code"]:
-                                                    print("            🐛 Vulnerable Code:")
-                                                    print(f"               {poc_data['vulnerable_code']}")
+                                                    output_lines.append("            🐛 Vulnerable Code:")
+                                                    output_lines.append(f"               {poc_data['vulnerable_code']}")
                                                 if poc_data["fixed_code"]:
-                                                    print("            ✅ Fixed Code:")
-                                                    print(f"               {poc_data['fixed_code']}")
+                                                    output_lines.append("            ✅ Fixed Code:")
+                                                    output_lines.append(f"               {poc_data['fixed_code']}")
                                                 if poc_data["test_case"]:
-                                                    print("            🧪 Test Case:")
-                                                    print(f"               {poc_data['test_case']}")
+                                                    output_lines.append("            🧪 Test Case:")
+                                                    output_lines.append(f"               {poc_data['test_case']}")
                                                 if poc_data["reasoning"]:
-                                                    print("            💡 Reasoning:")
-                                                    print(f"               {poc_data['reasoning']}")
+                                                    output_lines.append("            💡 Reasoning:")
+                                                    output_lines.append(f"               {poc_data['reasoning']}")
                                         else:
                                             reason = poc_data["reasoning"][:50]
                                             if not json_output:
-                                                print(f"         ⚠️  PoC generation failed: {reason}")
+                                                output_lines.append(f"         ⚠️  PoC generation failed: {reason}")
 
                             except Exception as e:
                                 if not json_output:
-                                    print(f"         ⚠️  PoC generation error: {str(e)[:50]}")
+                                    output_lines.append(f"         ⚠️  PoC generation error: {str(e)[:50]}")
                     else:
                         if not json_output:
-                            print("   ❌ No fix commits found in advisory references")
+                            output_lines.append("   ❌ No fix commits found in advisory references")
 
                     # Add package to CVE data
                     cve_data["packages"].append(package_data)
                     cve_data["pocs_generated"] += len(package_data["pocs"])
 
             if not json_output:
-                print("\n" + "=" * 80)
+                output_lines.append("\n" + "=" * 80)
 
             # Limit output for manageable processing
             if not target_cve and count >= 5:
@@ -322,21 +336,30 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
         if json_output:
             print(json.dumps(results, indent=2))
         else:
-            print(f"\nFound {count} recent CVEs")
-            print("📊 PoC Generation Summary:")
-            print(f"   Total packages analyzed: {total_packages}")
-            print(f"   🧪 PoCs generated: {poc_generated_count}")
+            # Store summary for later printing
+            output_lines.append(f"\nFound {count} recent CVEs")
+            output_lines.append("📊 PoC Generation Summary:")
+            output_lines.append(f"   Total packages analyzed: {total_packages}")
+            output_lines.append(f"   🧪 PoCs generated: {poc_generated_count}")
             if total_packages > 0:
                 success_rate = (poc_generated_count / total_packages) * 100
-                print(f"   📈 PoC generation rate: {success_rate:.1f}%")
+                output_lines.append(f"   📈 PoC generation rate: {success_rate:.1f}%")
 
     except Exception as e:
-        print(f"Error: {e}")
+        if not json_output:
+            output_lines.append(f"Error: {e}")
+        else:
+            print(f"Error: {e}")
         logging.error(f"Full error details: {e}", exc_info=True)
         import traceback
 
         traceback.print_exc()
     finally:
+        # Print all collected output after any logging has completed
+        if not json_output and output_lines:
+            for line in output_lines:
+                print(line)
+
         # Explicitly close the connection
         with suppress(AttributeError):
             g.close()
@@ -361,6 +384,7 @@ def main(
         uv run main.py --json                   # JSON output
         uv run main.py --cve CVE-2024-1234 --json  # Specific CVE as JSON
     """
+    # Always print title immediately for non-JSON output
     if not json_output:
         print("PoCForge - CVE-to-PoC Generator")
 
@@ -368,19 +392,26 @@ def main(
     token = get_github_token()
     anthropic_key = get_anthropic_api_key()
 
+    # Collect warning messages for later display
+    warning_messages = []
+
     if not token:
         if not json_output:
-            print("Tip: Add GitHub token to config.json for higher rate limits")
+            warning_messages.append("Tip: Add GitHub token to config.json for higher rate limits")
         logging.warning("No GITHUB_TOKEN found - using unauthenticated requests")
     else:
         logging.info(f"Using GITHUB_TOKEN from config (starts with: {token[:8]}...)")
 
     if not anthropic_key:
         if not json_output:
-            print("Warning: No Anthropic API key found - PoC generation will be disabled")
-            print("Add your key to config.json or set ANTHROPIC_API_KEY environment variable")
+            warning_messages.append("Warning: No Anthropic API key found - PoC generation will be disabled")
+            warning_messages.append("Add your key to config.json or set ANTHROPIC_API_KEY environment variable")
     else:
         logging.info("Using Anthropic API key from config")
+
+    # Print warnings after any logging
+    for warning in warning_messages:
+        print(warning)
 
     fetch_recent_cves(token, hours=hours, target_cve=cve, json_output=json_output)
 

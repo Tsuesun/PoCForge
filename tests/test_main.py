@@ -100,6 +100,9 @@ class TestPoCGeneration:
         mock_content.text = """
         {
             "vulnerable_function": "test_function",
+            "function_signature": "def test_function(param1: str, param2: int = 0) -> None:",
+            "risk_factors": ["Input validation missing", "Race condition possible"],
+            "attack_surface": ["Network accessible", "User input channels"],
             "prerequisites": ["test prerequisite"],
             "attack_vector": "test attack",
             "vulnerable_code": "vulnerable code example",
@@ -117,6 +120,9 @@ class TestPoCGeneration:
 
         assert result["success"] is True
         assert result["vulnerable_function"] == "test_function"
+        assert result["function_signature"] == "def test_function(param1: str, param2: int = 0) -> None:"
+        assert result["risk_factors"] == ["Input validation missing", "Race condition possible"]
+        assert result["attack_surface"] == ["Network accessible", "User input channels"]
         assert result["prerequisites"] == ["test prerequisite"]
         assert result["attack_vector"] == "test attack"
 
@@ -153,6 +159,57 @@ class TestPoCGeneration:
             assert result["success"] is False
             # Should fail due to no API key, but git extraction should have been attempted
             assert "No Anthropic API key" in result["reasoning"]
+
+    def test_extract_vulnerability_context_parameters(self):
+        """Test parameter extraction from commit diff."""
+        from cve_tracker.poc_generator import extract_vulnerability_context
+
+        # Test commit diff with Python function
+        commit_diff = """
+        diff --git a/file.py b/file.py
+        -def vulnerable_function(user_input, file_path, mode="r"):
+        +def secure_function(user_input, file_path, mode="r"):
+        """
+
+        context = extract_vulnerability_context(commit_diff, "Test vulnerability")
+
+        # Risk factors and attack surface are now handled by Claude for better accuracy
+        assert context["risk_factors"] == []
+        assert context["attack_surface"] == []
+
+        # Should extract function signatures
+        assert len(context["function_signatures"]) > 0
+        # Check that at least one signature contains the function pattern
+        has_function_sig = any("vulnerable_function" in sig or "secure_function" in sig for sig in context["function_signatures"])
+        assert has_function_sig
+
+    def test_risk_factors_and_attack_surface(self):
+        """Test that risk factors and attack surface are properly extracted."""
+        from cve_tracker.poc_generator import extract_vulnerability_context
+
+        # Test commit diff with various risk indicators
+        commit_diff = """
+        diff --git a/file.java b/file.java
+        -public void stopInternal() {
+        -    for (SocketWrapper socketWrapper : connections.values()) {
+        -        this.lockManager = new LockManager();
+        -        socketWrapper.close();
+        -    }
+        -}
+        +public void stopInternal() {
+        +    for (SocketWrapper socketWrapper : connections.values()) {
+        +        this.lockManager = new SafeLockManager();
+        +        socketWrapper.close();
+        +    }
+        +}
+        """
+
+        context = extract_vulnerability_context(commit_diff, "Test vulnerability")
+
+        # Risk factors and attack surface are now handled by Claude for better accuracy
+        assert context["risk_factors"] == []
+        assert context["attack_surface"] == []
+        assert context["config_changes"] == []
 
 
 class TestConfig:
