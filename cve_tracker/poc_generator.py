@@ -456,58 +456,12 @@ def extract_vulnerability_context(
 
     context["function_signatures"] = list(signatures)[:10]  # Limit to 10
 
-    # Extract basic risk factors from common patterns
-    risk_indicators = [
-        (r"for\s*\([^)]*\s+\w+\s*:\s*[^)]*\)", "Concurrent iteration over shared data"),
-        (r"lock\(\)|unlock\(\)|synchronized", "Concurrency control present"),
-        (r"close\(\)|shutdown\(\)|stop\(\)", "Resource cleanup operations"),
-        (r"input|param|user|request", "User input processing"),
-        (r"validate|sanitize|check", "Input validation present"),
-        (r"memory|buffer|allocation", "Memory management"),
-        (r"connection|socket|network", "Network operations"),
-    ]
+    # Risk factors and attack surface analysis is now handled by Claude
+    # for more accurate, context-aware analysis
+    context["risk_factors"] = []
+    context["attack_surface"] = []
 
-    risk_factors = []
-    for pattern, description in risk_indicators:
-        if re.search(pattern, commit_diff, re.IGNORECASE):
-            risk_factors.append(description)
-
-    context["risk_factors"] = risk_factors[:5]  # Limit to 5
-
-    # Extract attack surface indicators
-    attack_indicators = [
-        (r"public|exposed|endpoint", "Publicly accessible"),
-        (r"network|socket|connection", "Network accessible"),
-        (r"concurrent|thread|parallel", "Concurrent operations"),
-        (r"shutdown|stop|close", "State transition operations"),
-        (r"input|param|argument", "User input channels"),
-    ]
-
-    attack_surface = []
-    for pattern, description in attack_indicators:
-        if re.search(pattern, commit_diff, re.IGNORECASE):
-            attack_surface.append(description)
-
-    context["attack_surface"] = attack_surface[:5]  # Limit to 5
-
-    # Look for configuration-related changes
-    config_indicators = [
-        r"config",
-        r"setting",
-        r"option",
-        r"flag",
-        r"enable",
-        r"disable",
-        r"parameter",
-        r"env",
-        r"variable",
-    ]
-
-    config_changes = []
-    for indicator in config_indicators:
-        if re.search(indicator, commit_diff, re.IGNORECASE):
-            config_changes.append(indicator)
-
-    context["config_changes"] = config_changes[:5]
+    # Configuration change analysis is now handled by Claude for better accuracy
+    context["config_changes"] = []
 
     return context

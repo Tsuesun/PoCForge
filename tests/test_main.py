@@ -173,9 +173,9 @@ class TestPoCGeneration:
 
         context = extract_vulnerability_context(commit_diff, "Test vulnerability")
 
-        # Should extract risk factors and attack surface
-        assert len(context["risk_factors"]) > 0
-        assert len(context["attack_surface"]) > 0
+        # Risk factors and attack surface are now handled by Claude for better accuracy
+        assert context["risk_factors"] == []
+        assert context["attack_surface"] == []
 
         # Should extract function signatures
         assert len(context["function_signatures"]) > 0
@@ -206,17 +206,10 @@ class TestPoCGeneration:
 
         context = extract_vulnerability_context(commit_diff, "Test vulnerability")
 
-        # Should extract risk factors and attack surface
-        assert len(context["risk_factors"]) > 0
-        assert len(context["attack_surface"]) > 0
-
-        # Should identify concurrency and resource cleanup risks
-        risk_factors = " ".join(context["risk_factors"])
-        assert "concurrent" in risk_factors.lower() or "resource" in risk_factors.lower()
-
-        # Should identify network/concurrent attack surface
-        attack_surface = " ".join(context["attack_surface"])
-        assert "concurrent" in attack_surface.lower() or "network" in attack_surface.lower()
+        # Risk factors and attack surface are now handled by Claude for better accuracy
+        assert context["risk_factors"] == []
+        assert context["attack_surface"] == []
+        assert context["config_changes"] == []
 
 
 class TestConfig:
