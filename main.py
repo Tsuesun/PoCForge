@@ -15,19 +15,30 @@ from github import Github
 
 from cve_tracker import extract_commits_from_advisory_references
 from cve_tracker.config import get_anthropic_api_key, get_github_token
+from cve_tracker.constants import (
+    DEFAULT_HOURS_LOOKBACK,
+    DEFAULT_JSON_INDENT,
+    MAX_DIFF_SIZE,
+    MAX_DISPLAY_ITEMS,
+    MAX_DISPLAY_RESULTS,
+    MAX_ERROR_REASON_LENGTH,
+    MAX_FILES_TO_PROCESS,
+    SEPARATOR_LINE_LENGTH,
+    TOKEN_DISPLAY_PREFIX_LENGTH,
+)
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
 # Set up logging (WARNING level for clean output)
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: Optional[str] = None, json_output: bool = False) -> None:
+def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LOOKBACK, target_cve: Optional[str] = None, json_output: bool = False) -> None:
     """
     Fetch and print CVEs from the last N hours using PyGithub.
 
     Args:
         token: GitHub personal access token (optional)
-        hours: Hours to look back (default: 24)
+        hours: Hours to look back (default: DEFAULT_HOURS_LOOKBACK)
         target_cve: Specific CVE ID to target (e.g., CVE-2024-1234)
         json_output: Output results in JSON format instead of human-readable
     """
@@ -53,7 +64,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
             else:
                 output_lines.append(f"Fetching CVEs from the last {hours} hours...")
             output_lines.append("🧪 PoCForge: Creating vulnerability demonstrations from fix commits")
-            output_lines.append("=" * 80)
+            output_lines.append("=" * SEPARATOR_LINE_LENGTH)
 
         if target_cve:
             # Direct CVE lookup using GitHub API filtering
@@ -71,14 +82,14 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                             output_lines.append(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
                         else:
                             results["error"] = f"CVE {target_cve} not found in GitHub Security Advisories"
-                            print(json.dumps(results, indent=2))
+                            print(json.dumps(results, indent=DEFAULT_JSON_INDENT))
                         return
                 except Exception:
                     if not json_output:
                         output_lines.append(f"❌ CVE {target_cve} not found in GitHub Security Advisories")
                     else:
                         results["error"] = f"CVE {target_cve} not found in GitHub Security Advisories"
-                        print(json.dumps(results, indent=2))
+                        print(json.dumps(results, indent=DEFAULT_JSON_INDENT))
                     return
 
             except Exception as e:
@@ -86,7 +97,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                     output_lines.append(f"❌ Error searching for CVE {target_cve}: {e}")
                 else:
                     results["error"] = f"Error searching for CVE {target_cve}: {e}"
-                    print(json.dumps(results, indent=2))
+                    print(json.dumps(results, indent=DEFAULT_JSON_INDENT))
                 return
         else:
             # Get security advisories for time-based search
@@ -211,8 +222,8 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                     code_files = [f for f in commit_files if any(f.filename.endswith(ext) for ext in code_extensions)]
                                     other_files = [f for f in commit_files if not any(f.filename.endswith(ext) for ext in code_extensions)]
 
-                                    # Process code files first, then other files, but limit to 5 total
-                                    selected_files = (code_files + other_files)[:5]
+                                    # Process code files first, then other files, but limit to MAX_FILES_TO_PROCESS total
+                                    selected_files = (code_files + other_files)[:MAX_FILES_TO_PROCESS]
 
                                     for file in selected_files:
                                         if hasattr(file, "patch") and file.patch:
@@ -223,7 +234,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
 
                                         # Log diff size for debugging
                                         diff_size = len(combined_diff)
-                                        if diff_size > 12000:
+                                        if diff_size > MAX_DIFF_SIZE:
                                             logging.info(f"Large diff detected ({diff_size} chars) - will truncate intelligently")
 
                                         # Generate PoC
@@ -245,7 +256,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                         if poc_data["success"]:
                                             poc_generated_count += 1
                                             method_note = ""
-                                            if diff_size > 12000:
+                                            if diff_size > MAX_DIFF_SIZE:
                                                 method_note = " (using git extraction)"
 
                                             # Add PoC to package data
@@ -263,7 +274,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                                     "test_case": poc_data.get("test_case"),
                                                     "prerequisites": poc_data.get("prerequisites"),
                                                     "reasoning": poc_data.get("reasoning"),
-                                                    "method": "git_extraction" if diff_size > 12000 else "direct",
+                                                    "method": "git_extraction" if diff_size > MAX_DIFF_SIZE else "direct",
                                                 }
                                             )
 
@@ -275,13 +286,13 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                                     output_lines.append(f"            📝 Signature: {poc_data['function_signature']}")
                                                 # Display risk factors and attack surface
                                                 if poc_data.get("risk_factors"):
-                                                    risks = ", ".join(poc_data["risk_factors"][:3])
+                                                    risks = ", ".join(poc_data["risk_factors"][:MAX_DISPLAY_ITEMS])
                                                     output_lines.append(f"            ⚠️  Risk Factors: {risks}")
                                                 if poc_data.get("attack_surface"):
-                                                    surface = ", ".join(poc_data["attack_surface"][:3])
+                                                    surface = ", ".join(poc_data["attack_surface"][:MAX_DISPLAY_ITEMS])
                                                     output_lines.append(f"            🎯 Attack Surface: {surface}")
                                                 if poc_data["prerequisites"]:
-                                                    prereqs = ", ".join(poc_data["prerequisites"][:3])
+                                                    prereqs = ", ".join(poc_data["prerequisites"][:MAX_DISPLAY_ITEMS])
                                                     output_lines.append(f"            📋 Prerequisites: {prereqs}")
                                                 if poc_data["attack_vector"]:
                                                     output_lines.append(f"            💥 Attack: {poc_data['attack_vector']}")
@@ -298,13 +309,13 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                                                     output_lines.append("            💡 Reasoning:")
                                                     output_lines.append(f"               {poc_data['reasoning']}")
                                         else:
-                                            reason = poc_data["reasoning"][:50]
+                                            reason = poc_data["reasoning"][:MAX_ERROR_REASON_LENGTH]
                                             if not json_output:
                                                 output_lines.append(f"         ⚠️  PoC generation failed: {reason}")
 
                             except Exception as e:
                                 if not json_output:
-                                    output_lines.append(f"         ⚠️  PoC generation error: {str(e)[:50]}")
+                                    output_lines.append(f"         ⚠️  PoC generation error: {str(e)[:MAX_ERROR_REASON_LENGTH]}")
                     else:
                         if not json_output:
                             output_lines.append("   ❌ No fix commits found in advisory references")
@@ -314,12 +325,12 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
                     cve_data["pocs_generated"] += len(package_data["pocs"])
 
             if not json_output:
-                output_lines.append("\n" + "=" * 80)
+                output_lines.append("\n" + "=" * SEPARATOR_LINE_LENGTH)
 
             # Limit output for manageable processing
-            if not target_cve and count >= 5:
+            if not target_cve and count >= MAX_DISPLAY_RESULTS:
                 if not json_output:
-                    print("(Showing first 5 results...)")
+                    print(f"(Showing first {MAX_DISPLAY_RESULTS} results...)")
                 break
 
             # Add CVE to results
@@ -334,7 +345,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = 24, target_cve: 
         }
 
         if json_output:
-            print(json.dumps(results, indent=2))
+            print(json.dumps(results, indent=DEFAULT_JSON_INDENT))
         else:
             # Store summary for later printing
             output_lines.append(f"\nFound {count} recent CVEs")
@@ -370,7 +381,7 @@ app = typer.Typer(help="PoCForge - CVE-to-PoC Generator")
 
 @app.command()
 def main(
-    hours: int = typer.Option(24, "--hours", "-h", help="Hours to look back for recent CVEs"),
+    hours: int = typer.Option(DEFAULT_HOURS_LOOKBACK, "--hours", "-h", help="Hours to look back for recent CVEs"),
     cve: Optional[str] = typer.Option(None, "--cve", "-c", help="Target specific CVE (e.g., CVE-2024-1234)"),
     json_output: bool = typer.Option(False, "--json", help="Output results in JSON format"),
 ) -> None:
@@ -400,7 +411,7 @@ def main(
             warning_messages.append("Tip: Add GitHub token to config.json for higher rate limits")
         logging.warning("No GITHUB_TOKEN found - using unauthenticated requests")
     else:
-        logging.info(f"Using GITHUB_TOKEN from config (starts with: {token[:8]}...)")
+        logging.info(f"Using GITHUB_TOKEN from config (starts with: {token[:TOKEN_DISPLAY_PREFIX_LENGTH]}...)")
 
     if not anthropic_key:
         if not json_output:

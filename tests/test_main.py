@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cve_tracker import extract_commits_from_advisory_references
+from cve_tracker.constants import GITHUB_COMMIT_SCORE
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
 
@@ -29,7 +30,7 @@ class TestAdvisoryReferenceExtraction:
         assert len(result) == 2
         assert result[0]["repo"] == "owner/repo"
         assert result[0]["sha"] == "1234567890abcdef1234567890abcdef12345678"
-        assert result[0]["score"] == 100
+        assert result[0]["score"] == GITHUB_COMMIT_SCORE
         assert result[1]["repo"] == "another/repo"
         assert result[1]["sha"] == "fedcba0987654321fedcba0987654321fedcba09"
 

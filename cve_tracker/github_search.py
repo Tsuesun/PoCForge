@@ -8,6 +8,8 @@ import logging
 import re
 from typing import Any, Dict, List
 
+from .constants import GITHUB_COMMIT_SCORE, GITHUB_COMMIT_SHA_LENGTH
+
 
 def extract_commits_from_advisory_references(
     references: List[str],
@@ -22,7 +24,7 @@ def extract_commits_from_advisory_references(
         List of commit info dictionaries with high confidence scores
     """
     commits = []
-    commit_pattern = r"https://github\.com/([^/]+/[^/]+)/commit/([a-f0-9]{40})"
+    commit_pattern = rf"https://github\.com/([^/]+/[^/]+)/commit/([a-f0-9]{{{GITHUB_COMMIT_SHA_LENGTH}}})"
 
     for ref in references:
         match = re.match(commit_pattern, ref)
@@ -33,7 +35,7 @@ def extract_commits_from_advisory_references(
                 {
                     "message": "Fix commit referenced in security advisory",
                     "url": ref,
-                    "score": 100,  # Very high confidence - directly from advisory
+                    "score": GITHUB_COMMIT_SCORE,  # Very high confidence - directly from advisory
                     "repo": repo_name,
                     "sha": commit_sha,
                     "date": "Referenced in advisory",
