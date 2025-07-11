@@ -5,7 +5,6 @@ Analyzes fix commits to generate vulnerability demonstrations and test cases.
 """
 
 import logging
-import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -395,73 +394,3 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
         poc_data["reasoning"] = f"PoC generation error: {str(e)[:100]}"
 
     return poc_data
-
-
-def extract_vulnerability_context(
-    commit_diff: str,
-    cve_description: str,
-) -> Dict[str, Any]:
-    """
-    Extract vulnerability context and prerequisites from commit diff.
-
-    Args:
-        commit_diff: The git diff showing what was fixed
-        cve_description: Description of the vulnerability
-
-    Returns:
-        Dictionary with vulnerability context information
-    """
-    context: Dict[str, Any] = {
-        "modified_files": [],
-        "functions_changed": [],
-        "function_signatures": [],
-        "risk_factors": [],
-        "attack_surface": [],
-        "config_changes": [],
-        "dependency_changes": [],
-    }
-
-    # Extract modified files
-    file_pattern = r"diff --git a/(.*?) b/(.*?)(?:\n|$)"
-    files = re.findall(file_pattern, commit_diff)
-    context["modified_files"] = [f[0] for f in files]
-
-    # Extract function signatures (simplified pattern matching)
-    function_patterns = [
-        r"def\s+(\w+)\s*\(",  # Python functions
-        r"function\s+(\w+)\s*\(",  # JavaScript functions
-        r"(\w+)\s*\([^)]*\)\s*{",  # Java/C-style functions
-        r"fn\s+(\w+)\s*\(",  # Rust functions
-    ]
-
-    functions = set()
-    for pattern in function_patterns:
-        matches = re.findall(pattern, commit_diff)
-        functions.update(matches)
-
-    context["functions_changed"] = list(functions)[:10]  # Limit to 10
-
-    # Extract complete function signatures
-    signature_patterns = [
-        r"def\s+\w+\s*\([^)]*\)[^:]*:",  # Python function signatures
-        r"function\s+\w+\s*\([^)]*\)[^{]*{",  # JavaScript function signatures
-        r"\w+\s*\([^)]*\)\s*{",  # Java/C-style function signatures
-        r"fn\s+\w+\s*\([^)]*\)[^{]*{",  # Rust function signatures
-    ]
-
-    signatures = set()
-    for pattern in signature_patterns:
-        matches = re.findall(pattern, commit_diff)
-        signatures.update(matches)
-
-    context["function_signatures"] = list(signatures)[:10]  # Limit to 10
-
-    # Risk factors and attack surface analysis is now handled by Claude
-    # for more accurate, context-aware analysis
-    context["risk_factors"] = []
-    context["attack_surface"] = []
-
-    # Configuration change analysis is now handled by Claude for better accuracy
-    context["config_changes"] = []
-
-    return context
