@@ -160,10 +160,6 @@ class TestPoCGeneration:
             # Should fail due to no API key, but git extraction should have been attempted
             assert "No Anthropic API key" in result["reasoning"]
 
-    # Test removed: extract_vulnerability_context function was removed as dead code
-
-    # Test removed: extract_vulnerability_context function was removed as dead code
-
 
 class TestConfig:
     """Test configuration loading."""

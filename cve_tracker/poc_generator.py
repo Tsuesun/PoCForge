@@ -394,7 +394,3 @@ Return valid JSON only - no markdown, no backticks, no explanations, just the JS
         poc_data["reasoning"] = f"PoC generation error: {str(e)[:100]}"
 
     return poc_data
-
-
-# Function removed: extract_vulnerability_context was not used in main application logic
-# and only returned empty/minimal values. Functionality moved to Claude AI analysis.
