@@ -26,6 +26,14 @@ from cve_tracker.constants import (
     SEPARATOR_LINE_LENGTH,
     TOKEN_DISPLAY_PREFIX_LENGTH,
 )
+from cve_tracker.data_structures import (
+    create_commit_data,
+    create_cve_data,
+    create_package_data,
+    create_poc_data,
+    create_results_structure,
+    create_summary_data,
+)
 from cve_tracker.poc_generator import generate_poc_from_fix_commit
 
 # Set up logging (WARNING level for clean output)
@@ -51,11 +59,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
     g = Github(token) if token else Github()
 
     # Initialize results structure for JSON output
-    results: Dict[str, Any] = {
-        "search_params": {"hours": hours, "target_cve": target_cve, "timestamp": datetime.now(timezone.utc).isoformat()},
-        "cves": [],
-        "summary": {},
-    }
+    results: Dict[str, Any] = create_results_structure(hours, target_cve, datetime.now(timezone.utc).isoformat())
 
     try:
         if not json_output:
@@ -118,15 +122,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
             count += 1
 
             # Create CVE data structure
-            cve_data: Dict[str, Any] = {
-                "cve_id": advisory.cve_id or "N/A",
-                "summary": advisory.summary,
-                "severity": advisory.severity.upper() if advisory.severity else "UNKNOWN",
-                "published_at": advisory.published_at.isoformat() if advisory.published_at else None,
-                "advisory_url": advisory.html_url,
-                "packages": [],
-                "pocs_generated": 0,
-            }
+            cve_data: Dict[str, Any] = create_cve_data(advisory)
 
             if not json_output:
                 output_lines.append(f"\n🚨 CVE: {cve_data['cve_id']}")
@@ -141,14 +137,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
                     pkg = vuln.package
 
                     # Create package data structure
-                    package_data: Dict[str, Any] = {
-                        "name": pkg.name or "unknown",
-                        "ecosystem": pkg.ecosystem or "unknown",
-                        "vulnerable_versions": vuln.vulnerable_version_range or "unknown",
-                        "patched_versions": vuln.patched_versions or "unknown",
-                        "commits": [],
-                        "pocs": [],
-                    }
+                    package_data: Dict[str, Any] = create_package_data(pkg, vuln)
 
                     if not json_output:
                         output_lines.append(f"\n📦 Package: {package_data['name']} ({package_data['ecosystem']})")
@@ -169,13 +158,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
 
                         for commit_info in advisory_commits:
                             # Add commit info to package data
-                            commit_data = {
-                                "url": commit_info["url"],
-                                "sha": commit_info["sha"],
-                                "message": commit_info["message"],
-                                "repo": commit_info["repo"],
-                                "date": commit_info["date"],
-                            }
+                            commit_data = create_commit_data(commit_info)
                             package_data["commits"].append(commit_data)
 
                             if not json_output:
@@ -260,23 +243,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
                                                 method_note = " (using git extraction)"
 
                                             # Add PoC to package data
-                                            package_data["pocs"].append(
-                                                {
-                                                    "commit_url": commit_info["url"],
-                                                    "commit_sha": commit_info["sha"],
-                                                    "vulnerable_function": poc_data.get("vulnerable_function"),
-                                                    "function_signature": poc_data.get("function_signature"),
-                                                    "risk_factors": poc_data.get("risk_factors", []),
-                                                    "attack_surface": poc_data.get("attack_surface", []),
-                                                    "attack_vector": poc_data.get("attack_vector"),
-                                                    "vulnerable_code": poc_data.get("vulnerable_code"),
-                                                    "fixed_code": poc_data.get("fixed_code"),
-                                                    "test_case": poc_data.get("test_case"),
-                                                    "prerequisites": poc_data.get("prerequisites"),
-                                                    "reasoning": poc_data.get("reasoning"),
-                                                    "method": "git_extraction" if diff_size > MAX_DIFF_SIZE else "direct",
-                                                }
-                                            )
+                                            package_data["pocs"].append(create_poc_data(commit_info, poc_data, diff_size, MAX_DIFF_SIZE))
 
                                             if not json_output:
                                                 output_lines.append(f"         🧪 Generated PoC{method_note}:")
@@ -337,13 +304,7 @@ def fetch_recent_cves(token: Optional[str] = None, hours: int = DEFAULT_HOURS_LO
             results["cves"].append(cve_data)
 
         # Output results
-        results["summary"] = {
-            "total_cves": count,
-            "total_packages": total_packages,
-            "pocs_generated": poc_generated_count,
-            "success_rate": (poc_generated_count / total_packages * 100) if total_packages > 0 else 0,
-        }
-
+        results["summary"] = create_summary_data(count, total_packages, poc_generated_count)
         if json_output:
             print(json.dumps(results, indent=DEFAULT_JSON_INDENT))
         else:
